@@ -1,15 +1,32 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AccountMenu } from "@/components/account-menu";
 import { AdSenseScript, AdSlot } from "@/components/ads";
 import { UnlockBox } from "@/components/unlock-box";
 import { ViewTracker } from "@/components/view-tracker";
 import { splitChapterForAds } from "@/lib/ads";
-import { validTextUrl } from "@/lib/story-data";
+import { fetchChapterText } from "@/lib/chapter-content";
 import { chapterPrice } from "@/lib/coins";
 import { getChapterAccess, getChapterTextUrl, getStory } from "@/lib/stories";
+
+export async function generateMetadata({ params }: PageProps<"/truyen/[slug]/chuong/[chapterNumber]">): Promise<Metadata> {
+  const { slug, chapterNumber } = await params;
+  const story = await getStory(slug);
+  const chapter = story?.chapters.find((item) => item.chapter_number === Number(chapterNumber));
+  if (!story || !chapter) return { title: "Không tìm thấy chương" };
+  const paid = chapterPrice(story, chapter.chapter_number) > 0;
+  return {
+    title: `${story.title} – Chương ${chapter.chapter_number}: ${chapter.title}`,
+    description: `Đọc chương ${chapter.chapter_number} truyện ${story.title} của tác giả ${story.author}.`,
+    alternates: { canonical: `/truyen/${story.slug}/chuong/${chapter.chapter_number}` },
+    // Paid chapters show no text to anyone (Google included), so keep them out of the index instead of serving a thin page.
+    robots: paid ? { index: false, follow: true } : undefined,
+  };
+}
 
 export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/chuong/[chapterNumber]">) {
   const { slug, chapterNumber } = await params;
@@ -31,11 +48,9 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
   let error: string | null = null;
   if (locked) {
     // Nothing to fetch: the unlock box is shown instead of the text.
-  } else if (textUrl && validTextUrl(textUrl)) {
+  } else if (textUrl) {
     try {
-      const response = await fetch(textUrl, { next: { revalidate: 3600 } });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      content = (await response.text()).replace(/^﻿/, "");
+      content = await fetchChapterText(textUrl);
       if (!content.trim()) error = "Chương này chưa có nội dung.";
     } catch {
       error = "Không thể tải nội dung chương. Vui lòng thử lại sau.";
@@ -45,12 +60,12 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
   }
 
   // Ads only on chapters whose content actually loaded; never on locked, empty or error pages.
-  const showAds = !error && !locked;
+  const showAds = !error && !locked && !story.ads_disabled;
   const blocks = showAds ? splitChapterForAds(content) : [];
   const navigation = <nav aria-label="Chuyển chương" className="flex justify-between gap-3">{previous ? <Link href={`/truyen/${story.slug}/chuong/${previous.chapter_number}`}><Button variant="outline"><ArrowLeft className="mr-2 size-4" />Chương trước</Button></Link> : <span />}{next ? <Link href={`/truyen/${story.slug}/chuong/${next.chapter_number}`}><Button variant="outline">Chương sau<ArrowRight className="ml-2 size-4" /></Button></Link> : <Link href={`/truyen/${story.slug}`}><Button variant="outline">Về trang truyện</Button></Link>}</nav>;
 
   return <main className="min-h-screen bg-[#eaf5f7] px-4 py-8 text-[#123047]"><ViewTracker storySlug={story.slug} chapterNumber={chapter.chapter_number} />{showAds && <AdSenseScript />}<div className="mx-auto max-w-4xl">
-    <header className="mb-6 flex items-center justify-between gap-3"><Link href="/" className="flex items-center gap-2 font-semibold text-[#08729c]"><BookOpen className="size-5" />Mê Xem Truyện</Link><Link href={`/truyen/${story.slug}`} className="min-w-0 truncate text-sm text-[#08729c] hover:underline">{story.title}</Link></header>
+    <header className="mb-6 flex items-center justify-between gap-3"><Link href="/" className="flex items-center gap-2 font-semibold text-[#08729c]"><BookOpen className="size-5" />Mê Xem Truyện</Link><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-[#08729c] hover:underline sm:block">{story.title}</Link><div className="rounded-lg bg-[#08729c] p-1"><AccountMenu /></div></div></header>
     <div className="mb-6">{navigation}</div>
     <Card className="border-0 bg-white p-6 shadow-sm sm:p-10">
       <p className="mb-2 text-sm text-[#08729c]">{story.title}</p>

@@ -90,7 +90,7 @@ export function parseStoryImportCsv(input: string): StoryImportResult {
     if (!author) rowErrors.push("thiếu author");
     if (!chapterTitle) rowErrors.push("thiếu chapter_title");
     if (!Number.isInteger(number) || number < 1) rowErrors.push("chapter_number phải là số nguyên dương");
-    if (!validUrl(textUrl)) rowErrors.push("text_url phải là URL http(s)");
+    if (!validUrl(textUrl) && !/^r2:\/\/[A-Za-z0-9._\-/]+$/.test(textUrl)) rowErrors.push("text_url phải là URL http(s) hoặc r2://đường-dẫn");
     if (get("cover_url") && !validUrl(get("cover_url"))) rowErrors.push("cover_url phải là URL http(s)");
     if (get("audio_url") && !validUrl(get("audio_url"))) rowErrors.push("audio_url phải là URL http(s)");
     if (!statuses.has(statusValue)) rowErrors.push("status không hợp lệ");

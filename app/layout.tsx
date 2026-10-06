@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { siteInfo } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mê Xem Truyện",
-  description: "Nền tảng đọc truyện trực tuyến hấp dẫn",
+  metadataBase: new URL(siteInfo.url),
+  title: { default: `${siteInfo.name} – Đọc truyện chữ online`, template: `%s | ${siteInfo.name}` },
+  description: siteInfo.description,
+  openGraph: { type: "website", siteName: siteInfo.name, locale: "vi_VN" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/auth";
-import { validTextUrl } from "@/lib/story-data";
+import { guardAdminApi, roleAccess } from "@/lib/auth";
+import { contentUrlError } from "@/lib/chapter-content";
 import { touchStory } from "@/lib/stories";
 import { createClient } from "@/lib/supabase/server";
 
@@ -9,7 +9,8 @@ type ChapterInput = { chapter_number?: unknown; title?: unknown; text_url?: unkn
 // Adds new chapters to an existing story. Existing chapter numbers are rejected, never overwritten.
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/admin/stories/[id]/chapters">) {
   try {
-    await requireAdmin();
+    const guard = await guardAdminApi(roleAccess.content);
+    if (guard.error) return guard.error;
     const { id } = await ctx.params;
     const body = await request.json().catch(() => ({})) as { chapters?: ChapterInput[] };
     const input = Array.isArray(body.chapters) ? body.chapters : [];
@@ -20,8 +21,8 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/admin/s
       title: typeof chapter.title === "string" ? chapter.title.trim() : "",
       text_url: typeof chapter.text_url === "string" ? chapter.text_url.trim() : "",
     }));
-    const invalid = chapters.findIndex((chapter) => !Number.isInteger(chapter.chapter_number) || chapter.chapter_number < 1 || !chapter.title || !validTextUrl(chapter.text_url));
-    if (invalid >= 0) return NextResponse.json({ error: `Chương thứ ${invalid + 1}: cần số chương, tên chương và link .txt hợp lệ.` }, { status: 400 });
+    const invalid = chapters.findIndex((chapter) => !Number.isInteger(chapter.chapter_number) || chapter.chapter_number < 1 || !chapter.title || contentUrlError(chapter.text_url));
+    if (invalid >= 0) return NextResponse.json({ error: `Chương thứ ${invalid + 1}: ${contentUrlError(chapters[invalid].text_url) ?? "cần số chương, tên chương và link nội dung hợp lệ."}` }, { status: 400 });
     if (new Set(chapters.map((chapter) => chapter.chapter_number)).size !== chapters.length) return NextResponse.json({ error: "Có số chương bị trùng trong danh sách." }, { status: 400 });
 
     const supabase = await createClient();
@@ -36,3 +37,13 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/admin/s
   }
 }
 
+
+// All chapters of a story with their content links (admin editor).
+export async function GET(_request: NextRequest, ctx: RouteContext<"/api/admin/stories/[id]/chapters">) {
+  const guard = await guardAdminApi(roleAccess.content);
+  if (guard.error) return guard.error;
+  const { id } = await ctx.params;
+  const { data, error } = await guard.supabase.rpc("admin_list_chapters", { p_story_id: id });
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ chapters: data ?? [] });
+}

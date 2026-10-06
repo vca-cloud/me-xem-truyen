@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { guardAdminApi, roleAccess } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { parseStoryImportCsv, type ImportRow } from "@/lib/story-import";
 import { storySlug } from "@/lib/story-data";
+import { contentUrlError } from "@/lib/chapter-content";
 import { setStoryGenres } from "@/lib/stories";
 import { parseLockSettings } from "@/lib/coins";
 
@@ -10,7 +11,8 @@ const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    const guard = await guardAdminApi(roleAccess.content);
+    if (guard.error) return guard.error;
     const formData = await request.formData();
     const file = formData.get("file");
     if (!(file instanceof File)) return NextResponse.json({ error: "Vui lòng chọn file CSV." }, { status: 400 });
@@ -18,6 +20,8 @@ export async function POST(request: Request) {
     const parsed = parseStoryImportCsv(await file.text());
     if (parsed.errors.length) return NextResponse.json({ errors: parsed.errors }, { status: 400 });
     if (!parsed.rows.length) return NextResponse.json({ error: "File không có dòng dữ liệu hợp lệ." }, { status: 400 });
+    const badContent = parsed.rows.map((row) => ({ row, error: contentUrlError(row.text_url) })).filter((item) => item.error).slice(0, 20);
+    if (badContent.length) return NextResponse.json({ errors: badContent.map((item) => `Dòng ${item.row.line}: ${item.error}`) }, { status: 400 });
 
     const grouped = new Map<string, ImportRow[]>();
     for (const row of parsed.rows) {

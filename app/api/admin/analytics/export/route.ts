@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getRevenueDashboard, resolveRange } from "@/lib/analytics";
-import { requireAdmin } from "@/lib/auth";
+import { guardAdminApi, roleAccess } from "@/lib/auth";
 
 const cell = (value: string | number | null) => {
   const text = String(value ?? "");
@@ -9,11 +9,8 @@ const cell = (value: string | number | null) => {
 
 // Daily revenue + traffic report for the selected range, as UTF-8 CSV.
 export async function GET(request: NextRequest) {
-  try {
-    await requireAdmin();
-  } catch {
-    return NextResponse.json({ error: "Bạn không có quyền xuất báo cáo." }, { status: 401 });
-  }
+  const guard = await guardAdminApi(roleAccess.view);
+  if (guard.error) return guard.error;
   const range = resolveRange(request.nextUrl.searchParams.get("range") ?? undefined);
   const { data, error } = await getRevenueDashboard(range);
   if (error) return NextResponse.json({ error }, { status: 500 });

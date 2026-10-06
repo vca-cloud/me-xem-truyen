@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { guardAdminApi, roleAccess } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 const errors: Record<string, [string, number]> = {
@@ -12,11 +12,8 @@ const errors: Record<string, [string, number]> = {
 
 // Manual credit (+) or debit (-) of a member's Xu, recorded in the ledger with the admin and reason.
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/admin/members/[id]/coins">) {
-  try {
-    await requireAdmin();
-  } catch {
-    return NextResponse.json({ error: "Bạn không có quyền." }, { status: 401 });
-  }
+  const guard = await guardAdminApi(roleAccess.money);
+  if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const body = await request.json().catch(() => ({})) as { amount?: unknown; reason?: unknown };
   const amount = Number(body.amount);

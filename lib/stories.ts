@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { storySlug, type Chapter, type StoryStatus } from "@/lib/story-data";
@@ -15,6 +16,7 @@ export type StorySummary = {
   status: StoryStatus;
   lock_from_chapter: number | null;
   lock_price_coins: number;
+  ads_disabled: boolean;
   genres: string[];
   chapter_count: number;
   created_at: string;
@@ -28,7 +30,7 @@ type StoryRow = Omit<StorySummary, "genres" | "chapter_count"> & {
   chapters: { count: number }[] | null;
 };
 
-const summaryColumns = "id, slug, title, author, description, cover_url, audio_url, status, lock_from_chapter, lock_price_coins, created_at, updated_at, story_genres(genres(name)), chapters(count)";
+const summaryColumns = "id, slug, title, author, description, cover_url, audio_url, status, lock_from_chapter, lock_price_coins, ads_disabled, created_at, updated_at, story_genres(genres(name)), chapters(count)";
 
 function toSummary(row: StoryRow): StorySummary {
   const { story_genres, chapters, ...story } = row;
@@ -48,7 +50,7 @@ export async function listStories(): Promise<StorySummary[]> {
 }
 
 // One story with all chapters in reading order, or null when the slug does not exist.
-export async function getStory(slug: string): Promise<StoryDetail | null> {
+export const getStory = cache(async (slug: string): Promise<StoryDetail | null> => {
   const supabase = await createClient();
   const { data, error } = await supabase.from("stories").select(summaryColumns).eq("slug", slug).maybeSingle();
   if (error) throw new Error(`Không thể tải truyện: ${error.message}`);
@@ -61,7 +63,7 @@ export async function getStory(slug: string): Promise<StoryDetail | null> {
     .order("chapter_number", { ascending: true });
   if (chapterError) throw new Error(`Không thể tải danh sách chương: ${chapterError.message}`);
   return { ...summary, chapters: chapters ?? [] };
-}
+});
 
 // Splits "Tiên Hiệp | Tu Tiên, Huyền Huyễn" into unique genre names.
 export function parseGenreNames(value: unknown): string[] {

@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { guardAdminApi, roleAccess } from "@/lib/auth";
 import { parseAffiliateLink } from "@/lib/affiliate-links";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    const guard = await guardAdminApi(roleAccess.money);
+    if (guard.error) return guard.error;
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const parsed = parseAffiliateLink(body);
     if (parsed.error) return NextResponse.json({ error: parsed.error }, { status: 400 });

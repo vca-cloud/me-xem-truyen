@@ -33,7 +33,9 @@ public/               # Static assets
 - `/` — trang chủ: truyện mới đăng, mới cập nhật, hoàn thành, danh sách có lọc thể loại/tìm kiếm/phân trang (dữ liệu thật từ `stories`).
 - `/truyen/[slug]` — giới thiệu truyện và danh sách chương (`?thu_tu=moi` để xếp mới → cũ); slug không tồn tại trả 404.
 - `/truyen/[slug]/chuong/[chapterNumber]` — đọc chương; nội dung lấy từ `text_url` (file `.txt` public trên R2).
-- `/dang-nhap`, `/dang-ky` — email/password hoặc Google.
+- `/dang-nhap`, `/dang-ky` — email/password hoặc Google (Turnstile nếu có `NEXT_PUBLIC_TURNSTILE_SITE_KEY`); `?next=` qua `safeInternalPath`.
+- `/tai-khoan` — ví Xu thành viên. `/gioi-thieu`, `/dieu-khoan`, `/chinh-sach-bao-mat`, `/lien-he` — trang thông tin (thông tin công ty lấy từ `lib/site.ts` / `NEXT_PUBLIC_COMPANY_*`).
+- `/sitemap.xml` (truyện + chương miễn phí), `/robots.txt` (chặn admin/api/go/tai-khoan).
 - `/auth/callback` — OAuth callback, đổi code thành session.
 - `/go/[id]` — redirect affiliate: ghi click rồi chuyển 302 tới link Shopee (`?s=<slug>&c=<chương>`).
 - `/ads.txt` — sinh từ `NEXT_PUBLIC_ADSENSE_CLIENT`; trả 404 khi AdSense chưa bật.
@@ -41,13 +43,13 @@ public/               # Static assets
 
 ### Admin
 
-- `/admin/dang-nhap` — đăng nhập quản trị (ngoài protected route group).
+- `/admin/dang-nhap` — đăng nhập quản trị; `/admin/xac-thuc` — nhập mã 2 lớp (cả hai ngoài protected route group).
 - `/admin` — dashboard doanh thu & theo dõi.
 - `/admin/truyen` — đăng truyện, thêm chương, sửa thông tin (tên truyện cố định để giữ link), xóa, import CSV; dữ liệu thật.
 - `/admin/affiliate` — quản lý link Shopee, nhập báo cáo đơn hàng Shopee và AdSense.
-- `/admin/thanh-vien`, `/admin/quan-tri-vien`, `/admin/the-loai`, `/admin/cai-dat`.
+- `/admin/thanh-vien` (thành viên, cộng/trừ Xu), `/admin/quan-tri-vien` (cấp/sửa/gỡ quyền, đổi mật khẩu), `/admin/the-loai` (thêm/đổi tên/xóa), `/admin/cai-dat` (bật/tắt xác thực 2 lớp, xem thông tin website). Tất cả dùng dữ liệu thật.
 
-API admin: `/api/admin/stories` (POST đăng truyện), `/api/admin/stories/[id]` (PATCH sửa, DELETE xóa), `/api/admin/stories/[id]/chapters` (POST thêm chương), `/api/admin/stories/import`, `/api/admin/affiliate-links[/id]`, `/api/admin/revenue/import`, `/api/admin/analytics/export`, `/api/admin/administrators/[id]/password`. Mọi route admin gọi `requireAdmin()` ở server.
+API admin: `/api/admin/stories` (POST đăng truyện), `/api/admin/stories/[id]` (PATCH sửa, DELETE xóa), `/api/admin/stories/[id]/chapters` (POST thêm chương), `/api/admin/stories/import`, `/api/admin/affiliate-links[/id]`, `/api/admin/revenue/import`, `/api/admin/analytics/export`, `/api/admin/administrators/[id]/password`. Trang admin gọi `requireAdmin()` (redirect); API admin gọi `guardAdminApi(roleAccess.X)` trả 401/403. Quyền theo vai trò (`lib/auth.ts` → `roleAccess`): `view`/`content` cho admin, editor, moderator; `destructive` (xóa truyện/chương/thể loại), `money` (affiliate, doanh thu, Xu), `admins` chỉ cho `admin`. Thêm API mới: `/api/admin/stories/[id]/chapters` (GET), `/api/admin/chapters/[id]` (PATCH/DELETE — chương đã có người mua không xóa được), `/api/admin/administrators` (POST) + `[id]` (DELETE), `/api/admin/genres` (POST) + `[id]` (PATCH/DELETE).
 
 ## 4. Giao diện đã triển khai
 
@@ -102,7 +104,10 @@ Chạy theo thứ tự trong Supabase SQL Editor:
    - `track_affiliate_click(...)` — public; trả link đích nếu link đang bật; khử trùng 1 phút.
    - `admin_revenue_dashboard(p_from date, p_to date)` — chỉ admin; trả JSON tổng hợp cho dashboard.
 
-Bảng còn có thể bổ sung sau: thành viên/tủ sách, cờ truyện nhạy cảm (`stories`) để tắt quảng cáo.
+4. `0004_coins.sql` — Xu, khóa chương, ẩn `chapters.text_url` (xem mục 8b).
+5. `0005_admin_tools.sql` — `stories.ads_disabled`, `admin_list_chapters()`, `admin_set_admin()`/`admin_remove_admin()` (luôn giữ ≥ 1 admin), giới hạn 300 lượt xem/giờ/IP (`view_events.ip_hash`, `track_view` 6 tham số), xác thực 2 lớp trong DB (`admin_mfa_ok()`, `is_admin()` và `is_full_admin()` yêu cầu `aal2` nếu admin đã đăng ký TOTP), gỡ policy cho admin tự sửa `admin_profiles`.
+
+Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
 
 ## 7. Import truyện hàng loạt
 
@@ -157,6 +162,11 @@ Migration `0004_coins.sql`. 1 Xu = 100đ; gói nạp và nhãn trong `lib/coins.
 - Chưa làm: nạp tự động (VietQR/SePay + MoMo doanh nghiệp, tài khoản công ty), R2 riêng tư cho file chương trả phí (file `.txt` hiện vẫn public trên R2 nếu đoán được đường dẫn).
 
 ## 8c. Quy tắc bảo mật
+
+- Link nội dung chương: `https://…` (public, host phải thuộc `R2_PUBLIC_URL`/`CHAPTER_TEXT_HOSTS`) hoặc `r2://đường-dẫn` (bucket R2 riêng tư, đọc bằng `aws4fetch` + `R2_*`). Luôn kiểm bằng `contentUrlError()` và đọc bằng `fetchChapterText()` (`lib/chapter-content.ts`). Chương trả phí nên dùng `r2://`.
+- Xác thực 2 lớp: bật ở `/admin/cai-dat`; `requireAdmin()`/`guardAdminApi()` buộc `aal2`, DB cũng kiểm tra. Captcha Turnstile: `components/turnstile.tsx`, chỉ chạy khi có site key và phải bật cùng lúc trong Supabase Attack Protection.
+- Lượt xem lưu `ip_hash` = SHA-256(`VIEW_IP_SALT`:IP) cắt 32 ký tự; không có salt thì không lưu IP.
+- Truyện `ads_disabled` không tải AdSense và không hiện `AdSlot`.
 
 - Redirect sau đăng nhập dùng `safeInternalPath()` (`lib/safe-redirect.ts`); không tự kiểm `startsWith("/")` vì `/\\evil.com` thành domain ngoài.
 - Mọi URL do admin nhập (ảnh bìa, audio, nội dung, affiliate) phải qua `validTextUrl()` (chỉ http/https) cả khi lưu lẫn khi render.
@@ -277,8 +287,8 @@ Smoke test (`npm run dev`):
 Chưa hoàn thành:
 
 - Đổi mật khẩu admin tạm; thêm `SUPABASE_SERVICE_ROLE_KEY` nếu cần đổi mật khẩu từ trang admin.
-- Thành viên, thể loại, quản trị viên (sửa/xóa), cài đặt vẫn là mock hoặc chỉ lưu trong phiên; chưa có tủ sách; chưa xóa/sửa từng chương.
-- `components/admin-resource-page.tsx` còn nhánh `stories` cũ không dùng (trang truyện đã chuyển sang `components/admin-stories-page.tsx`).
+- Chưa có tủ sách, nạp Xu tự động, gom lượt xem theo ngày, CSP.
+- GitHub Actions `supabase-keepalive.yml`/`supabase-backup.yml` cần đẩy repo lên GitHub và thêm secrets.
 - Cờ truyện nhạy cảm để tắt quảng cáo; trang giới thiệu/chính sách/liên hệ (cần cho duyệt AdSense).
 - Đồng bộ tự động AdSense Management API và Shopee Affiliate API (hiện nhập CSV).
 - Gắn link Shopee và bật AdSense trên trang public (khi chủ dự án yêu cầu).

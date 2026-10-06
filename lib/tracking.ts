@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import type { NextRequest, NextResponse } from "next/server";
 
 export const VISITOR_COOKIE = "mxt_vid";
@@ -42,4 +43,12 @@ export function referrerHost(value: unknown, ownHost: string | null) {
   } catch {
     return null;
   }
+}
+
+// Salted one-way hash of the client IP, used only for rate limiting. Without VIEW_IP_SALT no IP data is kept.
+export function ipHash(request: NextRequest) {
+  const salt = process.env.VIEW_IP_SALT;
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip")?.trim();
+  if (!salt || salt.length < 16 || !ip) return null;
+  return createHash("sha256").update(`${salt}:${ip}`).digest("hex").slice(0, 32);
 }

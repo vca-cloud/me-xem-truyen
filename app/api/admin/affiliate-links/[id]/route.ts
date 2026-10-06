@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { guardAdminApi, roleAccess } from "@/lib/auth";
 import { parseAffiliateLink } from "@/lib/affiliate-links";
 import { createClient } from "@/lib/supabase/server";
 
 export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/affiliate-links/[id]">) {
   try {
-    await requireAdmin();
+    const guard = await guardAdminApi(roleAccess.money);
+    if (guard.error) return guard.error;
     const { id } = await ctx.params;
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const parsed = parseAffiliateLink(body, true);
@@ -21,7 +22,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
 
 export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/admin/affiliate-links/[id]">) {
   try {
-    await requireAdmin();
+    const guard = await guardAdminApi(roleAccess.money);
+    if (guard.error) return guard.error;
     const { id } = await ctx.params;
     const supabase = await createClient();
     const { error } = await supabase.from("affiliate_links").delete().eq("id", id);

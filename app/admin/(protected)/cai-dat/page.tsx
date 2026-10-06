@@ -1,7 +1,22 @@
-"use client";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { PageHeading } from "@/components/admin-ui";
-export default function SettingsPage() { const [saved, setSaved] = useState(false); return <><PageHeading title="Cài đặt" description="Cấu hình thông tin và vận hành nền tảng." /><div className="grid max-w-4xl gap-6"><Card className="border-slate-200 shadow-sm"><CardHeader><CardTitle className="text-base">Thông tin website</CardTitle><CardDescription>Các thông tin hiển thị trên trang công khai.</CardDescription></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><label className="grid gap-2 text-sm font-medium">Tên website<Input defaultValue="Mê Xem Truyện" /></label><label className="grid gap-2 text-sm font-medium">Email liên hệ<Input defaultValue="contact@mexemtruyen.vn" type="email" /></label><label className="grid gap-2 text-sm font-medium sm:col-span-2">Mô tả ngắn<Input defaultValue="Nền tảng đọc truyện trực tuyến hấp dẫn" /></label></CardContent></Card><Card className="border-slate-200 shadow-sm"><CardHeader><CardTitle className="text-base">Tùy chọn nội dung</CardTitle><CardDescription>Kiểm soát cách nội dung được hiển thị và kiểm duyệt.</CardDescription></CardHeader><CardContent className="space-y-4"><label className="flex items-center justify-between gap-4 text-sm"><span><b className="block">Tự động duyệt chương mới</b><small className="text-slate-500">Cho phép chương mới hiển thị ngay sau khi đăng.</small></span><input type="checkbox" defaultChecked className="size-4 accent-cyan-600" /></label><label className="flex items-center justify-between gap-4 text-sm"><span><b className="block">Cho phép đăng ký thành viên</b><small className="text-slate-500">Người dùng mới có thể tạo tài khoản.</small></span><input type="checkbox" defaultChecked className="size-4 accent-cyan-600" /></label></CardContent></Card><div className="flex items-center gap-3"><Button onClick={() => setSaved(true)}>Lưu thay đổi</Button>{saved && <span className="text-sm text-emerald-600">Đã lưu thay đổi</span>}</div></div></>; }
+import { MfaSettings } from "@/components/mfa-settings";
+import { siteInfo } from "@/lib/site";
+
+export default function SettingsPage() {
+  const rows: [string, string][] = [
+    ["Tên website", siteInfo.name],
+    ["Địa chỉ web", siteInfo.url],
+    ["Đơn vị vận hành", siteInfo.company || "(chưa điền)"],
+    ["Mã số thuế", siteInfo.taxCode || "(chưa điền)"],
+    ["Email liên hệ", siteInfo.email || "(chưa điền)"],
+  ];
+  return <>
+    <PageHeading title="Cài đặt" description="Bảo mật tài khoản và thông tin hiển thị trên website." />
+    <div className="grid max-w-3xl gap-6">
+      <Card className="border-slate-200 shadow-sm"><CardHeader><CardTitle className="text-base">Xác thực 2 lớp</CardTitle><CardDescription>Áp dụng cho tài khoản bạn đang đăng nhập.</CardDescription></CardHeader><CardContent><MfaSettings /></CardContent></Card>
+      <Card className="border-slate-200 shadow-sm"><CardHeader><CardTitle className="text-base">Thông tin website</CardTitle><CardDescription>Dùng ở chân trang, trang Giới thiệu/Liên hệ/Điều khoản và SEO. Thay đổi bằng biến môi trường NEXT_PUBLIC_* trên Vercel rồi deploy lại.</CardDescription></CardHeader>
+        <CardContent><dl className="divide-y text-sm">{rows.map(([label, value]) => <div key={label} className="flex justify-between gap-4 py-2"><dt className="text-slate-500">{label}</dt><dd className="min-w-0 truncate text-right font-medium">{value}</dd></div>)}</dl></CardContent></Card>
+    </div>
+  </>;
+}

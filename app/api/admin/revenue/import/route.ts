@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { guardAdminApi, roleAccess } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { parseRevenueCsv } from "@/lib/revenue-import";
 
@@ -8,7 +8,8 @@ const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 // Upserts Shopee conversion reports (by order_id) or AdSense daily reports (by date + ad_unit).
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    const guard = await guardAdminApi(roleAccess.money);
+    if (guard.error) return guard.error;
     const formData = await request.formData();
     const type = formData.get("type");
     const file = formData.get("file");

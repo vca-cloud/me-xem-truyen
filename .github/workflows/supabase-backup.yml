@@ -1,0 +1,39 @@
+# Nightly database backup (the Supabase Free plan has no downloadable backups).
+# Needs repository secret SUPABASE_DB_URL = the "Session pooler" connection string from
+# Supabase → Connect (postgresql://postgres.<ref>:<password>@aws-...pooler.supabase.com:5432/postgres).
+# Backups are kept as private workflow artifacts for 30 days (Actions → this workflow → a run → Artifacts).
+name: Supabase backup
+
+on:
+  schedule:
+    - cron: "43 19 * * *" # 02:43 Vietnam time, daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump schema and data
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          stamp=$(date -u +%Y%m%d-%H%M)
+          mkdir backup
+          docker run --rm -e PGURL="$SUPABASE_DB_URL" -v "$PWD/backup:/backup" postgres:17 bash -c '
+            set -euo pipefail
+            pg_dump "$PGURL" --no-owner --no-privileges --schema=public --schema=auth --format=custom --file=/backup/database.dump
+            pg_dump "$PGURL" --no-owner --no-privileges --schema=public --schema-only --file=/backup/public-schema.sql
+          '
+          ls -lh backup
+          echo "STAMP=$stamp" >> "$GITHUB_ENV"
+      - name: Keep the backup for 30 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup-${{ env.STAMP }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error

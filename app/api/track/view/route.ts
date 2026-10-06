@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { deviceFromUserAgent, isBot, referrerHost, setVisitorCookie, visitorIdFrom } from "@/lib/tracking";
+import { deviceFromUserAgent, ipHash, isBot, referrerHost, setVisitorCookie, visitorIdFrom } from "@/lib/tracking";
 
 export async function POST(request: NextRequest) {
   const userAgent = request.headers.get("user-agent");
@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       p_visitor_id: visitor.id,
       p_device: deviceFromUserAgent(userAgent),
       p_referrer_host: referrerHost(body?.referrer, request.nextUrl.host),
+      p_ip_hash: ipHash(request),
     });
   } catch {
     // Tracking must never break reading; failures are dropped silently.

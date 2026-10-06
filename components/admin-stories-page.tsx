@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download, ExternalLink, FileUp, ListPlus, Pencil, Plus, Search, Trash2, X } from "lucide-react";
@@ -9,12 +9,12 @@ import { Input } from "@/components/ui/input";
 import { PageHeading, StatusBadge, TableCard } from "@/components/admin-ui";
 import { parseStoryImportCsv, storyImportTemplate } from "@/lib/story-import";
 import type { StoryStatus } from "@/lib/story-data";
-import { DEFAULT_LOCK_PRICE, formatCoins } from "@/lib/coins";
+import { chapterPrice, DEFAULT_LOCK_PRICE, formatCoins } from "@/lib/coins";
 import { cn } from "@/lib/utils";
 
-export type AdminStory = { id: string; slug: string; title: string; author: string; description: string; cover_url: string | null; audio_url: string | null; status: StoryStatus; lock_from_chapter: number | null; lock_price_coins: number; genres: string[]; chapter_count: number; updated_at: string };
+export type AdminStory = { id: string; slug: string; title: string; author: string; description: string; cover_url: string | null; audio_url: string | null; status: StoryStatus; lock_from_chapter: number | null; lock_price_coins: number; ads_disabled: boolean; genres: string[]; chapter_count: number; updated_at: string };
 type ChapterDraft = { chapter_number: string; title: string; text_url: string };
-type StoryForm = { id?: string; title: string; author: string; description: string; cover_url: string; audio_url: string; status: StoryStatus; genres: string; lock_from_chapter: string; lock_price_coins: string; chapters: ChapterDraft[] };
+type StoryForm = { id?: string; title: string; author: string; description: string; cover_url: string; audio_url: string; status: StoryStatus; genres: string; lock_from_chapter: string; lock_price_coins: string; ads_disabled: boolean; chapters: ChapterDraft[] };
 type Message = { tone: "ok" | "error"; text: string };
 
 const statuses: StoryStatus[] = ["Đang ra", "Hoàn thành", "Tạm dừng"];
@@ -30,7 +30,7 @@ function chapterError(chapters: ChapterDraft[]) {
   if (numbers.some((number) => !Number.isInteger(number) || number < 1)) return "Số chương phải là số nguyên dương.";
   if (new Set(numbers).size !== numbers.length) return "Có số chương bị trùng.";
   if (chapters.some((chapter) => !chapter.title.trim())) return "Mỗi chương cần có tên chương.";
-  if (chapters.some((chapter) => !/^https?:\/\//i.test(chapter.text_url.trim()))) return "Link nội dung (.txt) phải bắt đầu bằng http:// hoặc https://.";
+  if (chapters.some((chapter) => !/^(https?|r2):\/\//i.test(chapter.text_url.trim()))) return "Link nội dung (.txt) phải bắt đầu bằng https:// (file public) hoặc r2:// (file riêng tư).";
   return null;
 }
 
@@ -41,7 +41,7 @@ function ChapterRows({ chapters, onChange }: { chapters: ChapterDraft[]; onChang
       <label className="text-xs font-medium text-slate-600">Số chương<Input required inputMode="numeric" value={chapter.chapter_number} onChange={(event) => update(index, { chapter_number: event.target.value })} /></label>
       <label className="text-xs font-medium text-slate-600">Tên chương<Input required value={chapter.title} onChange={(event) => update(index, { title: event.target.value })} placeholder="Ví dụ: Thư viện bí ẩn" /></label>
       <Button type="button" variant="ghost" size="icon-sm" className="self-end text-rose-600" aria-label="Bỏ chương này" disabled={chapters.length === 1} onClick={() => onChange(chapters.filter((_, i) => i !== index))}><X className="size-4" /></Button>
-      <label className="text-xs font-medium text-slate-600 sm:col-span-3">Link nội dung chương (.txt trên R2)<Input required type="url" value={chapter.text_url} onChange={(event) => update(index, { text_url: event.target.value })} placeholder="https://pub-….r2.dev/ten-truyen/chuong-1.txt" /></label>
+      <label className="text-xs font-medium text-slate-600 sm:col-span-3">Link nội dung chương (.txt trên R2 — dùng r2:// cho chương trả phí)<Input required value={chapter.text_url} onChange={(event) => update(index, { text_url: event.target.value })} placeholder="https://pub-….r2.dev/ten-truyen/chuong-1.txt hoặc r2://ten-truyen/chuong-1.txt" /></label>
     </div>)}
     <Button type="button" variant="outline" size="sm" onClick={() => { const last = Number(chapters.at(-1)?.chapter_number); onChange([...chapters, blankChapter(Number.isInteger(last) ? last + 1 : chapters.length + 1)]); }}><Plus className="size-4" />Thêm một chương</Button>
   </div>;
@@ -56,6 +56,105 @@ function Modal({ title, description, onClose, children }: { title: string; descr
   </div>;
 }
 
+type ExistingChapter = { id: string; chapter_number: number; title: string; text_url: string };
+
+async function fetchChapters(storyId: string): Promise<{ chapters: ExistingChapter[] } | { error: string }> {
+  try {
+    const response = await fetch(`/api/admin/stories/${storyId}/chapters`);
+    const body = await response.json().catch(() => ({}));
+    return response.ok ? { chapters: body.chapters ?? [] } : { error: body.error ?? "Không tải được danh sách chương." };
+  } catch {
+    return { error: "Lỗi kết nối đến server." };
+  }
+}
+
+// Lists a story's chapters with inline edit/delete, plus a form to add new chapters.
+function ChapterManager({ story, onChanged }: { story: AdminStory; onChanged: (text: string) => void }) {
+  const [chapters, setChapters] = useState<ExistingChapter[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ExistingChapter | null>(null);
+  const [drafts, setDrafts] = useState<ChapterDraft[]>([blankChapter(story.chapter_count + 1)]);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  const apply = useCallback((result: Awaited<ReturnType<typeof fetchChapters>>) => {
+    if ("error" in result) return setLoadError(result.error);
+    setChapters(result.chapters);
+    setDrafts([blankChapter((result.chapters.at(-1)?.chapter_number ?? 0) + 1)]);
+  }, []);
+  const load = useCallback(async () => apply(await fetchChapters(story.id)), [apply, story.id]);
+
+  useEffect(() => {
+    let active = true;
+    fetchChapters(story.id).then((result) => { if (active) apply(result); });
+    return () => { active = false; };
+  }, [apply, story.id]);
+
+  async function request(url: string, init: RequestInit, success: string) {
+    setPending(true);
+    setError(null);
+    try {
+      const response = await fetch(url, init);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) { setError(body.error ?? "Không thể lưu."); return false; }
+      onChanged(success);
+      await load();
+      return true;
+    } catch {
+      setError("Lỗi kết nối đến server.");
+      return false;
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function saveEdit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!editing) return;
+    if (await request(`/api/admin/chapters/${editing.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: editing.title, text_url: editing.text_url }) }, `Đã sửa chương ${editing.chapter_number}.`)) setEditing(null);
+  }
+
+  async function remove(chapter: ExistingChapter) {
+    if (!window.confirm(`Xóa chương ${chapter.chapter_number}: ${chapter.title}?`)) return;
+    await request(`/api/admin/chapters/${chapter.id}`, { method: "DELETE" }, `Đã xóa chương ${chapter.chapter_number}.`);
+  }
+
+  async function addChapters(event: React.FormEvent) {
+    event.preventDefault();
+    const problem = chapterError(drafts);
+    if (problem) return setError(problem);
+    await request(`/api/admin/stories/${story.id}/chapters`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chapters: toChapterPayload(drafts) }) }, `Đã thêm ${drafts.length} chương vào "${story.title}".`);
+  }
+
+  return <div className="space-y-6">
+    {error && <p role="alert" className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+    <section>
+      <h3 className="mb-2 font-semibold">Chương hiện có {chapters && `(${chapters.length})`}</h3>
+      {loadError ? <p className="text-sm text-rose-700">{loadError}</p> : !chapters ? <p className="text-sm text-slate-500">Đang tải...</p> : chapters.length === 0 ? <p className="text-sm text-slate-500">Chưa có chương nào.</p> :
+        <div className="max-h-80 divide-y overflow-y-auto rounded-lg border">{chapters.map((chapter) => editing?.id === chapter.id
+          ? <form key={chapter.id} onSubmit={saveEdit} className="space-y-2 bg-cyan-50/50 p-3">
+              <p className="text-xs font-semibold text-slate-600">Sửa chương {chapter.chapter_number}</p>
+              <Input required aria-label="Tên chương" value={editing.title} onChange={(event) => setEditing({ ...editing, title: event.target.value })} />
+              <Input required aria-label="Link nội dung" value={editing.text_url} onChange={(event) => setEditing({ ...editing, text_url: event.target.value })} />
+              <div className="flex justify-end gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setEditing(null)}>Hủy</Button><Button type="submit" size="sm" disabled={pending}>Lưu</Button></div>
+            </form>
+          : <div key={chapter.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+              <span className="w-12 shrink-0 tabular-nums text-slate-500">#{chapter.chapter_number}</span>
+              <div className="min-w-0 flex-1"><p className="truncate">{chapter.title}</p><p className="truncate text-xs text-slate-400">{chapter.text_url}</p></div>
+              {chapterPrice(story, chapter.chapter_number) > 0 && <span className="shrink-0 text-xs text-amber-600">{formatCoins(story.lock_price_coins)}</span>}
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={`Sửa chương ${chapter.chapter_number}`} onClick={() => { setError(null); setEditing(chapter); }}><Pencil className="size-4" /></Button>
+              <Button type="button" variant="ghost" size="icon-sm" className="text-rose-600" aria-label={`Xóa chương ${chapter.chapter_number}`} disabled={pending} onClick={() => remove(chapter)}><Trash2 className="size-4" /></Button>
+            </div>)}
+        </div>}
+    </section>
+    <form onSubmit={addChapters} className="space-y-3">
+      <h3 className="font-semibold">Thêm chương mới</h3>
+      <ChapterRows chapters={drafts} onChange={setDrafts} />
+      <div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? "Đang lưu..." : "Lưu chương mới"}</Button></div>
+    </form>
+  </div>;
+}
+
 export function AdminStoriesPage({ stories, loadError }: { stories: AdminStory[]; loadError: string | null }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -64,7 +163,7 @@ export function AdminStoriesPage({ stories, loadError }: { stories: AdminStory[]
   const [pending, setPending] = useState(false);
   const [form, setForm] = useState<StoryForm | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [chapterTarget, setChapterTarget] = useState<{ story: AdminStory; chapters: ChapterDraft[] } | null>(null);
+  const [chapterTarget, setChapterTarget] = useState<AdminStory | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -115,26 +214,13 @@ export function AdminStoriesPage({ stories, loadError }: { stories: AdminStory[]
     if (!form) return;
     if (!form.id) { const error = chapterError(form.chapters); if (error) return setFormError(error); }
     setFormError(null);
-    const payload = { author: form.author, description: form.description, cover_url: form.cover_url, audio_url: form.audio_url, status: form.status, genres: form.genres, lock_from_chapter: form.lock_from_chapter, lock_price_coins: form.lock_price_coins };
+    const payload = { author: form.author, description: form.description, cover_url: form.cover_url, audio_url: form.audio_url, status: form.status, genres: form.genres, lock_from_chapter: form.lock_from_chapter, lock_price_coins: form.lock_price_coins, ads_disabled: form.ads_disabled };
     const { ok, body } = form.id
       ? await send(`/api/admin/stories/${form.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
       : await send("/api/admin/stories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, title: form.title, chapters: toChapterPayload(form.chapters) }) });
     if (!ok) return setFormError(body.error ?? "Không thể lưu truyện.");
     setForm(null);
     done(form.id ? `Đã cập nhật "${form.title}".` : `Đã đăng truyện "${form.title}".`);
-  }
-
-  async function saveChapters(event: React.FormEvent) {
-    event.preventDefault();
-    if (!chapterTarget) return;
-    const error = chapterError(chapterTarget.chapters);
-    if (error) return setFormError(error);
-    setFormError(null);
-    const { ok, body } = await send(`/api/admin/stories/${chapterTarget.story.id}/chapters`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chapters: toChapterPayload(chapterTarget.chapters) }) });
-    if (!ok) return setFormError(body.error ?? "Không thể thêm chương.");
-    const title = chapterTarget.story.title;
-    setChapterTarget(null);
-    done(`Đã thêm ${body.added} chương vào "${title}".`);
   }
 
   async function removeStory(story: AdminStory) {
@@ -144,9 +230,9 @@ export function AdminStoriesPage({ stories, loadError }: { stories: AdminStory[]
     done(`Đã xóa "${story.title}".`);
   }
 
-  const openCreate = () => { setFormError(null); setMessage(null); setForm({ title: "", author: "", description: "", cover_url: "", audio_url: "", status: "Đang ra", genres: "", lock_from_chapter: "", lock_price_coins: String(DEFAULT_LOCK_PRICE), chapters: [blankChapter(1)] }); };
-  const openEdit = (story: AdminStory) => { setFormError(null); setMessage(null); setForm({ id: story.id, title: story.title, author: story.author, description: story.description, cover_url: story.cover_url ?? "", audio_url: story.audio_url ?? "", status: story.status, genres: story.genres.join(" | "), lock_from_chapter: story.lock_from_chapter === null ? "" : String(story.lock_from_chapter), lock_price_coins: String(story.lock_price_coins), chapters: [] }); };
-  const openChapters = (story: AdminStory) => { setFormError(null); setMessage(null); setChapterTarget({ story, chapters: [blankChapter(story.chapter_count + 1)] }); };
+  const openCreate = () => { setFormError(null); setMessage(null); setForm({ title: "", author: "", description: "", cover_url: "", audio_url: "", status: "Đang ra", genres: "", lock_from_chapter: "", lock_price_coins: String(DEFAULT_LOCK_PRICE), ads_disabled: false, chapters: [blankChapter(1)] }); };
+  const openEdit = (story: AdminStory) => { setFormError(null); setMessage(null); setForm({ id: story.id, title: story.title, author: story.author, description: story.description, cover_url: story.cover_url ?? "", audio_url: story.audio_url ?? "", status: story.status, genres: story.genres.join(" | "), lock_from_chapter: story.lock_from_chapter === null ? "" : String(story.lock_from_chapter), lock_price_coins: String(story.lock_price_coins), ads_disabled: story.ads_disabled, chapters: [] }); };
+  const openChapters = (story: AdminStory) => { setMessage(null); setChapterTarget(story); };
 
   return <>
     <PageHeading title="Quản lý truyện" description="Đăng truyện mới, thêm chương, sửa thông tin và import hàng loạt từ file CSV." action={<div className="flex flex-wrap gap-2">
@@ -170,12 +256,12 @@ export function AdminStoriesPage({ stories, loadError }: { stories: AdminStory[]
           <td className="max-w-72 px-5 py-3"><p className="truncate font-medium">{story.title}</p><p className="truncate text-xs text-slate-400">{story.author}</p></td>
           <td className="max-w-56 truncate px-5 py-3 text-slate-500">{story.genres.join(", ") || "—"}</td>
           <td className="px-5 py-3 text-right tabular-nums">{story.chapter_count}</td>
-          <td className="whitespace-nowrap px-5 py-3 text-slate-500">{story.lock_from_chapter === null ? "Miễn phí" : `Từ ch.${story.lock_from_chapter} · ${formatCoins(story.lock_price_coins)}`}</td>
+          <td className="whitespace-nowrap px-5 py-3 text-slate-500">{story.lock_from_chapter === null ? "Miễn phí" : `Từ ch.${story.lock_from_chapter} · ${formatCoins(story.lock_price_coins)}`}{story.ads_disabled && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">Không QC</span>}</td>
           <td className="px-5 py-3"><StatusBadge>{story.status}</StatusBadge></td>
           <td className="whitespace-nowrap px-5 py-3 text-slate-500">{dateFormat.format(new Date(story.updated_at))}</td>
           <td className="px-5 py-3"><div className="flex justify-end gap-1">
             <Link href={`/truyen/${story.slug}`} target="_blank" aria-label="Xem trang truyện" className="inline-flex size-7 items-center justify-center rounded-md hover:bg-slate-100"><ExternalLink className="size-4" /></Link>
-            <Button variant="ghost" size="icon-sm" aria-label="Thêm chương" onClick={() => openChapters(story)}><ListPlus className="size-4" /></Button>
+            <Button variant="ghost" size="icon-sm" aria-label="Quản lý chương" onClick={() => openChapters(story)}><ListPlus className="size-4" /></Button>
             <Button variant="ghost" size="icon-sm" aria-label="Sửa thông tin truyện" onClick={() => openEdit(story)}><Pencil className="size-4" /></Button>
             <Button variant="ghost" size="icon-sm" className="text-rose-600" aria-label="Xóa truyện" disabled={pending} onClick={() => removeStory(story)}><Trash2 className="size-4" /></Button>
           </div></td>
@@ -204,18 +290,15 @@ export function AdminStoriesPage({ stories, loadError }: { stories: AdminStory[]
           </div>
           <p className="mt-2 text-xs text-slate-600">{/^\d+$/.test(form.lock_from_chapter) && Number(form.lock_from_chapter) > 0 ? `Chương 1–${Number(form.lock_from_chapter) - 1} miễn phí; từ chương ${form.lock_from_chapter} trở đi mỗi chương ${form.lock_price_coins || DEFAULT_LOCK_PRICE} Xu (1 Xu = 100đ). Chương thêm sau cũng tự khóa.` : "Toàn bộ truyện đang miễn phí."}</p>
         </fieldset>
+        <label className="flex items-start gap-3 rounded-lg border p-3 text-sm"><input type="checkbox" className="mt-0.5 size-4" checked={form.ads_disabled} onChange={(event) => setForm({ ...form, ads_disabled: event.target.checked })} /><span><b className="block">Tắt quảng cáo cho truyện này</b><span className="text-slate-500">Bật với truyện có nội dung người lớn/nhạy cảm — Google không cho đặt quảng cáo cạnh nội dung đó.</span></span></label>
         {!form.id && <div><h3 className="mb-2 font-semibold">Danh sách chương</h3><ChapterRows chapters={form.chapters} onChange={(chapters) => setForm({ ...form, chapters })} /></div>}
         {formError && <p role="alert" className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{formError}</p>}
         <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setForm(null)}>Hủy</Button><Button type="submit" disabled={pending}>{pending ? "Đang lưu..." : form.id ? "Lưu thay đổi" : "Đăng truyện"}</Button></div>
       </form>
     </Modal>}
 
-    {chapterTarget && <Modal title={`Thêm chương: ${chapterTarget.story.title}`} description={`Truyện hiện có ${chapterTarget.story.chapter_count} chương.`} onClose={() => setChapterTarget(null)}>
-      <form onSubmit={saveChapters} className="space-y-4">
-        <ChapterRows chapters={chapterTarget.chapters} onChange={(chapters) => setChapterTarget({ ...chapterTarget, chapters })} />
-        {formError && <p role="alert" className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{formError}</p>}
-        <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setChapterTarget(null)}>Hủy</Button><Button type="submit" disabled={pending}>{pending ? "Đang lưu..." : "Lưu chương"}</Button></div>
-      </form>
+    {chapterTarget && <Modal title={`Chương: ${chapterTarget.title}`} description="Sửa tên/link từng chương, xóa chương chưa có ai mua, hoặc thêm chương mới." onClose={() => { setChapterTarget(null); router.refresh(); }}>
+      <ChapterManager story={chapterTarget} onChanged={(text) => setMessage({ tone: "ok", text })} />
     </Modal>}
 
     {importFile && <Modal title="Import truyện hàng loạt" onClose={() => { setImportFile(null); setImportErrors([]); }}>

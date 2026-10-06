@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { AccountMenu } from "@/components/account-menu";
 import { AdSenseScript, AdSlot } from "@/components/ads";
+import { SiteFooter } from "@/components/site-footer";
 import {
   ChevronLeft,
   ChevronRight,
@@ -86,8 +88,7 @@ export function HomePage({ stories, loadError }: { stories: HomeStory[]; loadErr
             <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Tìm kiếm tên truyện, tác giả..." className="h-9 border-white/30 bg-white/10 pl-9 text-white placeholder:text-white/60 focus-visible:ring-white/50" />
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <Link href="/dang-nhap" className="hidden h-8 items-center justify-center rounded-lg border border-white/35 bg-transparent px-2.5 text-sm font-medium text-white transition-colors hover:bg-white/15 sm:inline-flex">Đăng nhập</Link>
-            <Link href="/dang-ky" className="inline-flex h-8 items-center justify-center rounded-lg bg-orange-500 px-2.5 text-sm font-medium text-white transition-colors hover:bg-orange-600">Đăng ký</Link>
+            <AccountMenu />
             <Button variant="outline" size="icon" aria-label="Đổi giao diện sáng tối" onClick={toggleTheme} className="border-white/35 bg-white/10 text-white hover:bg-white/20 hover:text-white">
               {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </Button>
@@ -111,6 +112,7 @@ export function HomePage({ stories, loadError }: { stories: HomeStory[]; loadErr
 
         {stories.length > 0 && <section><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><SectionTitle>DANH SÁCH TRUYỆN</SectionTitle><div className="flex items-center gap-2"><ListFilter className="size-4 text-muted-foreground" /><select aria-label="Lọc theo thể loại" value={genre} onChange={(event) => { setGenre(event.target.value); setPage(1); }} className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring">{genres.map((item) => <option key={item}>{item}</option>)}</select></div></div><Card className="overflow-hidden border-border/70"><div className="grid grid-cols-[32px_minmax(0,1fr)_110px_64px] border-b bg-muted/50 px-3 py-3 text-xs font-semibold sm:grid-cols-[48px_minmax(0,1fr)_220px_120px] sm:px-5"><span>#</span><span>Tên truyện</span><span>Thể loại</span><span className="text-right sm:text-left">Chương</span></div>{pageStories.map((story, index) => <div key={story.slug} className="grid grid-cols-[32px_minmax(0,1fr)_110px_64px] items-center border-b px-3 py-3 text-sm last:border-0 sm:grid-cols-[48px_minmax(0,1fr)_220px_120px] sm:px-5"><span className="text-muted-foreground">{(page - 1) * 10 + index + 1}</span><Link href={`/truyen/${story.slug}`} className="min-w-0 truncate pr-3 font-medium hover:text-primary">{story.title}</Link><div className="min-w-0 pl-2"><GenreBadges genres={story.genres} /></div><span className="truncate text-right font-semibold text-primary sm:text-left">{story.chapter_count}</span></div>)}{pageStories.length === 0 && <p className="px-5 py-8 text-center text-sm text-muted-foreground">Không tìm thấy truyện phù hợp.</p>}</Card>{pageCount > 1 && <div className="mt-4 flex items-center justify-center gap-1"><Button variant="outline" size="icon-sm" aria-label="Trang trước" disabled={page === 1} onClick={() => setPage((value) => value - 1)}><ChevronLeft /></Button>{Array.from({ length: pageCount }, (_, index) => index + 1).map((number) => <Button key={number} variant={page === number ? "default" : "outline"} size="icon-sm" aria-label={`Trang ${number}`} onClick={() => setPage(number)}>{number}</Button>)}<Button variant="outline" size="icon-sm" aria-label="Trang sau" disabled={page === pageCount} onClick={() => setPage((value) => value + 1)}><ChevronRight /></Button></div>}</section>}
       </main>
+      <SiteFooter />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { guardAdminApi, roleAccess } from "@/lib/auth";
 import { validTextUrl } from "@/lib/story-data";
 import { parseGenreNames, setStoryGenres } from "@/lib/stories";
 import { parseLockSettings } from "@/lib/coins";
@@ -10,11 +10,12 @@ const statuses = ["Đang ra", "Hoàn thành", "Tạm dừng"];
 // Updates story details. The title (and therefore the slug/URL) is kept fixed so links and stats stay valid.
 export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/stories/[id]">) {
   try {
-    await requireAdmin();
+    const guard = await guardAdminApi(roleAccess.content);
+    if (guard.error) return guard.error;
     const { id } = await ctx.params;
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const text = (key: string) => (typeof body[key] === "string" ? (body[key] as string).trim() : undefined);
-    const update: Record<string, string | number | null> = {};
+    const update: Record<string, string | number | boolean | null> = {};
 
     const author = text("author");
     if (author !== undefined) { if (!author) return NextResponse.json({ error: "Tác giả là bắt buộc." }, { status: 400 }); update.author = author; }
@@ -29,6 +30,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
     const status = text("status");
     if (status !== undefined) { if (!statuses.includes(status)) return NextResponse.json({ error: "Trạng thái không hợp lệ." }, { status: 400 }); update.status = status; }
 
+    if (typeof body.ads_disabled === "boolean") update.ads_disabled = body.ads_disabled;
     if ("lock_from_chapter" in body || "lock_price_coins" in body) {
       const lock = parseLockSettings(body.lock_from_chapter, body.lock_price_coins);
       if (lock.error) return NextResponse.json({ error: lock.error }, { status: 400 });
@@ -48,7 +50,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
 // Deletes a story with all its chapters and genre links.
 export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/admin/stories/[id]">) {
   try {
-    await requireAdmin();
+    const guard = await guardAdminApi(roleAccess.destructive);
+    if (guard.error) return guard.error;
     const { id } = await ctx.params;
     const supabase = await createClient();
     const { error, count } = await supabase.from("stories").delete({ count: "exact" }).eq("id", id);

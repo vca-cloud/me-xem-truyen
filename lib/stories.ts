@@ -1,0 +1,109 @@
+import "server-only";
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
+import { storySlug, type Chapter, type StoryStatus } from "@/lib/story-data";
+
+export type StorySummary = {
+  id: string;
+  slug: string;
+  title: string;
+  author: string;
+  description: string;
+  cover_url: string | null;
+  audio_url: string | null;
+  status: StoryStatus;
+  lock_from_chapter: number | null;
+  lock_price_coins: number;
+  genres: string[];
+  chapter_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StoryDetail = StorySummary & { chapters: Required<Pick<Chapter, "id" | "chapter_number" | "title">>[] };
+
+type StoryRow = Omit<StorySummary, "genres" | "chapter_count"> & {
+  story_genres: { genres: { name: string } | null }[] | null;
+  chapters: { count: number }[] | null;
+};
+
+const summaryColumns = "id, slug, title, author, description, cover_url, audio_url, status, lock_from_chapter, lock_price_coins, created_at, updated_at, story_genres(genres(name)), chapters(count)";
+
+function toSummary(row: StoryRow): StorySummary {
+  const { story_genres, chapters, ...story } = row;
+  return {
+    ...story,
+    genres: (story_genres ?? []).map((item) => item.genres?.name).filter((name): name is string => !!name),
+    chapter_count: chapters?.[0]?.count ?? 0,
+  };
+}
+
+// All stories, most recently updated first. Public data (RLS: select is open).
+export async function listStories(): Promise<StorySummary[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("stories").select(summaryColumns).order("updated_at", { ascending: false });
+  if (error) throw new Error(`Không thể tải danh sách truyện: ${error.message}`);
+  return ((data ?? []) as unknown as StoryRow[]).map(toSummary);
+}
+
+// One story with all chapters in reading order, or null when the slug does not exist.
+export async function getStory(slug: string): Promise<StoryDetail | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("stories").select(summaryColumns).eq("slug", slug).maybeSingle();
+  if (error) throw new Error(`Không thể tải truyện: ${error.message}`);
+  if (!data) return null;
+  const summary = toSummary(data as unknown as StoryRow);
+  const { data: chapters, error: chapterError } = await supabase
+    .from("chapters")
+    .select("id, chapter_number, title")
+    .eq("story_id", summary.id)
+    .order("chapter_number", { ascending: true });
+  if (chapterError) throw new Error(`Không thể tải danh sách chương: ${chapterError.message}`);
+  return { ...summary, chapters: chapters ?? [] };
+}
+
+// Splits "Tiên Hiệp | Tu Tiên, Huyền Huyễn" into unique genre names.
+export function parseGenreNames(value: unknown): string[] {
+  const items = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[|,;]/) : [];
+  const names = items.map((item) => String(item).trim()).filter((item) => item && item.length <= 60);
+  return [...new Map(names.map((name) => [name.toLocaleLowerCase(), name])).values()].slice(0, 10);
+}
+
+// Replaces a story's genres, creating missing genres by slug. Requires an admin session (RLS).
+export async function setStoryGenres(supabase: SupabaseClient, storyId: string, names: string[]) {
+  const { error: clearError } = await supabase.from("story_genres").delete().eq("story_id", storyId);
+  if (clearError) throw new Error(clearError.message);
+  if (!names.length) return;
+  const rows = [...new Map(names.map((name) => [storySlug(name), { name, slug: storySlug(name) }])).values()].filter((row) => row.slug);
+  const { data: genres, error } = await supabase.from("genres").upsert(rows, { onConflict: "slug", ignoreDuplicates: false }).select("id");
+  if (error) throw new Error(error.message);
+  const { error: linkError } = await supabase.from("story_genres").insert((genres ?? []).map((genre) => ({ story_id: storyId, genre_id: genre.id })));
+  if (linkError) throw new Error(linkError.message);
+}
+
+export async function touchStory(supabase: SupabaseClient, storyId: string) {
+  await supabase.from("stories").update({ updated_at: new Date().toISOString() }).eq("id", storyId);
+}
+
+export type ChapterAccess = { price: number; userId: string | null; unlocked: boolean; balance: number | null };
+
+// Whether the current visitor may read a chapter: free, already unlocked, or locked (with their balance).
+export async function getChapterAccess(chapterId: string, price: number): Promise<ChapterAccess> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { price, userId: null, unlocked: price === 0, balance: null };
+  const [{ data: wallet }, { data: unlock }] = await Promise.all([
+    supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle(),
+    price > 0 ? supabase.from("chapter_unlocks").select("chapter_id").eq("user_id", user.id).eq("chapter_id", chapterId).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  return { price, userId: user.id, unlocked: price === 0 || !!unlock, balance: wallet?.balance ?? 0 };
+}
+
+// Content link of a chapter, or null when the visitor has no access (decided by public.chapter_text_url in SQL).
+export async function getChapterTextUrl(chapterId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("chapter_text_url", { p_chapter_id: chapterId });
+  if (error) throw new Error(`Không thể tải chương: ${error.message}`);
+  return typeof data === "string" ? data : null;
+}

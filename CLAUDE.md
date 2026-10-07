@@ -88,7 +88,7 @@ API tác giả (`guardAuthorApi()`, ghi bằng service role sau khi kiểm sessi
 ### Ảnh bìa
 
 - Khung 4:5 ở mọi nơi (`COVER_ASPECT_CLASS`, `lib/cover.ts`), `object-cover` (không méo; sai tỷ lệ thì cắt). Một ảnh dùng chung điện thoại và máy tính.
-- Tải ảnh trong form truyện (admin + tác giả) bằng `components/cover-uploader.tsx`: cắt 4:5 bằng `react-easy-crop`, trình duyệt xuất 600×750 + 300×375 WebP (JPEG nếu trình duyệt không mã hóa được WebP), gửi `POST /api/admin/covers` (vai trò `content`) hoặc `/api/author/covers`. Vẫn nhận link dán tay (host khác thì không có srcset).
+- Tải ảnh trong form truyện (admin + tác giả) bằng `components/cover-uploader.tsx`, 2 chế độ: **Giữ nguyên toàn bộ ảnh** (mặc định — cả ảnh thu vào khung 4:5, phần trống lấp bằng bản phóng to mờ của chính ảnh, không cắt mất gì) và **Cắt ảnh** (`react-easy-crop`, `cropSize` = đúng cả khung vì mặc định thư viện chừa lề 5% làm mất viền); trình duyệt xuất 600×750 + 300×375 WebP (JPEG nếu trình duyệt không mã hóa được WebP), gửi `POST /api/admin/covers` (vai trò `content`) hoặc `/api/author/covers`. Vẫn nhận link dán tay (host khác thì không có srcset).
 - Server (`lib/cover-storage.ts`) đọc header file kiểm định dạng (chỉ JPEG/WebP), kích thước đúng, dung lượng (≤ 400 KB / 200 KB); lưu R2 public `covers/<uuid>.webp` + `covers/<uuid>-sm.webp`, `Cache-Control: public, max-age=31536000, immutable`.
 - Hiển thị qua `coverImageProps()` (srcset 300w/600w, width/height chống giật trang; trang chủ `loading=lazy`, trang truyện `fetchPriority=high`).
 - Thay/bỏ ảnh hoặc xóa truyện → `deleteCoverIfUnused()` xóa cả 2 file trên R2 nếu không truyện nào khác dùng. Ảnh tải lên rồi hủy không lưu sẽ còn lại trên R2 (chưa có dọn tự động).

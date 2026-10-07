@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import { toast } from "sonner";
-import { ImageUp, Trash2, ZoomIn } from "lucide-react";
+import { Crop, ImageUp, Maximize, Trash2, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { COVER_SIZES } from "@/lib/cover";
 
 const MAX_SOURCE_BYTES = 15 * 1024 * 1024;
@@ -24,26 +25,50 @@ function toBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
   return new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
 }
 
-// Draws the chosen 4:5 area at one output size and encodes it as WebP (JPEG on browsers that cannot
-// encode WebP), lowering quality until it fits the server's byte limit.
-async function render(image: HTMLImageElement, area: Area, size: (typeof COVER_SIZES)["large" | "small"], type?: string) {
+type Mode = "full" | "crop";
+
+// Paints the cover onto a canvas of the given size.
+// "full": the whole image, scaled to fit inside 4:5; any empty band is filled with a soft, darkened, enlarged copy
+//         of the same image (blurred by drawing it tiny and scaling up, which works in every browser).
+// "crop": only the chosen 4:5 area.
+function paint(image: HTMLImageElement, mode: Mode, area: Area | null, width: number, height: number) {
   const canvas = document.createElement("canvas");
-  canvas.width = size.width;
-  canvas.height = size.height;
+  canvas.width = width;
+  canvas.height = height;
   const context = canvas.getContext("2d")!;
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, size.width, size.height);
   context.imageSmoothingQuality = "high";
-  context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, size.width, size.height);
+  context.fillStyle = "#102D54";
+  context.fillRect(0, 0, width, height);
+  if (mode === "crop" && area) {
+    context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, width, height);
+    return canvas;
+  }
+  const iw = image.naturalWidth, ih = image.naturalHeight;
+  const cover = Math.max(width / iw, height / ih);
+  const tiny = document.createElement("canvas");
+  tiny.width = 24;
+  tiny.height = 30;
+  const tinyContext = tiny.getContext("2d")!;
+  tinyContext.drawImage(image, (24 - iw * cover * 24 / width) / 2, (30 - ih * cover * 30 / height) / 2, iw * cover * 24 / width, ih * cover * 30 / height);
+  context.drawImage(tiny, 0, 0, width, height);
+  context.fillStyle = "rgba(0, 0, 0, 0.25)";
+  context.fillRect(0, 0, width, height);
+  const fit = Math.min(width / iw, height / ih);
+  context.drawImage(image, (width - iw * fit) / 2, (height - ih * fit) / 2, iw * fit, ih * fit);
+  return canvas;
+}
+
+// Encodes as WebP (JPEG on browsers that cannot encode WebP), lowering quality until it fits the server's byte limit.
+async function encode(canvas: HTMLCanvasElement, maxBytes: number, type?: string) {
   for (const quality of [0.82, 0.74, 0.66, 0.58, 0.5]) {
     let blob = await toBlob(canvas, type ?? "image/webp", quality);
     if (blob && !type && blob.type !== "image/webp") blob = await toBlob(canvas, "image/jpeg", quality);
-    if (blob && blob.size <= size.maxBytes) return blob;
+    if (blob && blob.size <= maxBytes) return blob;
   }
   throw new Error("Ảnh quá phức tạp, không nén được đủ nhẹ.");
 }
 
-// Cover field: upload a photo, crop it to 4:5 in the browser, store 600×750 + 300×375 copies on R2.
+// Cover field: upload a photo, keep it whole (default) or crop it to 4:5 in the browser, store 600×750 + 300×375 copies on R2.
 // A link pasted by hand still works for covers hosted elsewhere.
 export function CoverUploader({ id, value, onChange, uploadUrl }: { id?: string; value: string; onChange: (url: string) => void; uploadUrl: string }) {
   const fileInput = useRef<HTMLInputElement>(null);
@@ -52,29 +77,51 @@ export function CoverUploader({ id, value, onChange, uploadUrl }: { id?: string;
   const [zoom, setZoom] = useState(1);
   const [area, setArea] = useState<Area | null>(null);
   const [pending, setPending] = useState(false);
+  const [mode, setMode] = useState<Mode>("full");
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [brokenUrl, setBrokenUrl] = useState<string | null>(null);
+  const [frameSize, setFrameSize] = useState<{ width: number; height: number } | null>(null);
+
+  // The crop window always equals the whole 4:5 frame (the cropper's default leaves a 5% margin that trims the edges).
+  // Measured with a ref callback because the frame only mounts once the dialog has opened.
+  const frame = useCallback((element: HTMLDivElement | null) => {
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => setFrameSize({ width: entry.contentRect.width, height: entry.contentRect.height }));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   function choose(file: File | undefined) {
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return toast.error("Chỉ nhận ảnh JPG, PNG hoặc WebP.");
     if (file.size > MAX_SOURCE_BYTES) return toast.error("Ảnh gốc tối đa 15 MB.");
+    const url = URL.createObjectURL(file);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
-    setSource(URL.createObjectURL(file));
+    setMode("full");
+    setSource(url);
+    loadImage(url).then((loaded) => {
+      setImage(loaded);
+      setPreview(paint(loaded, "full", null, 480, 600).toDataURL("image/jpeg", 0.85));
+    }).catch(() => { toast.error("Không đọc được ảnh."); close(); });
   }
 
   function close() {
     if (source) URL.revokeObjectURL(source);
     setSource(null);
+    setImage(null);
+    setPreview(null);
     if (fileInput.current) fileInput.current.value = "";
   }
 
   async function upload() {
-    if (!source || !area) return;
+    if (!image || (mode === "crop" && !area)) return;
     setPending(true);
     try {
-      const image = await loadImage(source);
-      const large = await render(image, area, COVER_SIZES.large);
-      const small = await render(image, area, COVER_SIZES.small, large.type);
+      const { large: L, small: Sm } = COVER_SIZES;
+      const large = await encode(paint(image, mode, area, L.width, L.height), L.maxBytes);
+      const small = await encode(paint(image, mode, area, Sm.width, Sm.height), Sm.maxBytes, large.type);
       const form = new FormData();
       form.append("large", large, `cover.${large.type === "image/webp" ? "webp" : "jpg"}`);
       form.append("small", small, `cover-sm.${large.type === "image/webp" ? "webp" : "jpg"}`);
@@ -94,7 +141,7 @@ export function CoverUploader({ id, value, onChange, uploadUrl }: { id?: string;
   return <div className="flex gap-3">
     <div className="aspect-[4/5] w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
       {/* eslint-disable-next-line @next/next/no-img-element -- preview of an admin-provided URL */}
-      {value ? <img src={value} alt="Ảnh bìa hiện tại" className="size-full object-cover" /> : <div className="flex size-full items-center justify-center text-[10px] text-muted-foreground">Chưa có ảnh</div>}
+      {value && brokenUrl !== value ? <img src={value} alt="Ảnh bìa hiện tại" className="size-full object-cover" onError={() => setBrokenUrl(value)} /> : <div className={`flex size-full items-center justify-center p-1 text-center text-[10px] ${value ? "text-destructive" : "text-muted-foreground"}`}>{value ? "Không tải được ảnh, hãy tải lại" : "Chưa có ảnh"}</div>}
     </div>
     <div className="min-w-0 flex-1 space-y-2">
       <div className="flex flex-wrap gap-2">
@@ -107,16 +154,27 @@ export function CoverUploader({ id, value, onChange, uploadUrl }: { id?: string;
 
     <Dialog open={!!source} onOpenChange={(open) => { if (!open && !pending) close(); }}>
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>Cắt ảnh bìa 4:5</DialogTitle><DialogDescription>Kéo ảnh để chọn phần muốn giữ, kéo thanh trượt để phóng to. Ảnh sẽ được lưu cỡ 600 × 750 và 300 × 375 (WebP).</DialogDescription></DialogHeader>
-        <div className="relative mx-auto aspect-[4/5] w-full max-w-sm overflow-hidden rounded-md bg-black">
-          {source && <Cropper image={source} crop={crop} zoom={zoom} aspect={4 / 5} maxZoom={4} onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={(_, pixels) => setArea(pixels)} objectFit="cover" />}
+        <DialogHeader><DialogTitle>Ảnh bìa 4:5</DialogTitle><DialogDescription>Ảnh được lưu cỡ 600 × 750 và 300 × 375 (WebP), dùng chung cho điện thoại và máy tính.</DialogDescription></DialogHeader>
+        <Tabs value={mode} onValueChange={(value) => setMode(value as Mode)}>
+          <TabsList className="w-full">
+            <TabsTrigger value="full"><Maximize />Giữ nguyên toàn bộ ảnh</TabsTrigger>
+            <TabsTrigger value="crop"><Crop />Cắt ảnh</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div ref={frame} className="relative mx-auto aspect-[4/5] w-full max-w-sm overflow-hidden rounded-md bg-black">
+          {mode === "full"
+            // eslint-disable-next-line @next/next/no-img-element -- local preview (data URL)
+            ? preview && <img src={preview} alt="Xem trước ảnh bìa" className="size-full object-cover" />
+            : source && frameSize && <Cropper image={source} crop={crop} zoom={zoom} aspect={4 / 5} maxZoom={4} cropSize={frameSize} onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={(_, pixels) => setArea(pixels)} objectFit="cover" />}
         </div>
-        <label className="flex items-center gap-3 text-sm"><ZoomIn className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="sr-only">Phóng to</span>
-          <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="w-full accent-[var(--highlight)]" />
-        </label>
+        {mode === "full"
+          ? <p className="text-sm text-muted-foreground">Không cắt mất phần nào. Ảnh không đúng tỷ lệ 4:5 sẽ có nền mờ lấp phần trống.</p>
+          : <label className="flex items-center gap-3 text-sm"><ZoomIn className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="sr-only">Phóng to</span>
+            <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="w-full accent-[var(--highlight)]" />
+          </label>}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={pending} onClick={close}>Hủy</Button>
-          <Button type="button" disabled={pending || !area} onClick={upload} className="bg-highlight text-highlight-foreground hover:bg-highlight/90"><ImageUp />{pending ? "Đang xử lý..." : "Cắt & tải lên"}</Button>
+          <Button type="button" disabled={pending || !image || (mode === "crop" && !area)} onClick={upload} className="bg-highlight text-highlight-foreground hover:bg-highlight/90"><ImageUp />{pending ? "Đang xử lý..." : "Tải lên"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

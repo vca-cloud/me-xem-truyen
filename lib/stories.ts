@@ -27,18 +27,24 @@ export type StoryDetail = StorySummary & { chapters: Required<Pick<Chapter, "id"
 
 type StoryRow = Omit<StorySummary, "genres" | "chapter_count"> & {
   story_genres: { genres: { name: string } | null }[] | null;
-  chapters: { count: number }[] | null;
 };
 
-const summaryColumns = "id, slug, title, author, description, cover_url, audio_url, status, lock_from_chapter, lock_price_coins, ads_disabled, created_at, updated_at, story_genres(genres(name)), chapters(count)";
+const summaryColumns = "id, slug, title, author, description, cover_url, audio_url, status, lock_from_chapter, lock_price_coins, ads_disabled, created_at, updated_at, story_genres(genres(name))";
 
-function toSummary(row: StoryRow): StorySummary {
-  const { story_genres, chapters, ...story } = row;
+function toSummary(row: StoryRow, chapterCounts: Map<string, number>): StorySummary {
+  const { story_genres, ...story } = row;
   return {
     ...story,
     genres: (story_genres ?? []).map((item) => item.genres?.name).filter((name): name is string => !!name),
-    chapter_count: chapters?.[0]?.count ?? 0,
+    chapter_count: chapterCounts.get(story.id) ?? 0,
   };
+}
+
+// chapters is not readable table-wide (text_url is hidden), so counts come from public.story_chapter_counts().
+async function chapterCounts(supabase: SupabaseClient, storyIds?: string[]) {
+  const { data, error } = await supabase.rpc("story_chapter_counts", { p_story_ids: storyIds ?? null });
+  if (error) throw new Error(`Không thể đếm chương: ${error.message}`);
+  return new Map(((data ?? []) as { story_id: string; chapter_count: number }[]).map((row) => [row.story_id, row.chapter_count]));
 }
 
 // All stories, most recently updated first. Public data (RLS: select is open).
@@ -46,7 +52,8 @@ export async function listStories(): Promise<StorySummary[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("stories").select(summaryColumns).order("updated_at", { ascending: false });
   if (error) throw new Error(`Không thể tải danh sách truyện: ${error.message}`);
-  return ((data ?? []) as unknown as StoryRow[]).map(toSummary);
+  const counts = await chapterCounts(supabase);
+  return ((data ?? []) as unknown as StoryRow[]).map((row) => toSummary(row, counts));
 }
 
 // One story with all chapters in reading order, or null when the slug does not exist.
@@ -55,14 +62,15 @@ export const getStory = cache(async (slug: string): Promise<StoryDetail | null> 
   const { data, error } = await supabase.from("stories").select(summaryColumns).eq("slug", slug).maybeSingle();
   if (error) throw new Error(`Không thể tải truyện: ${error.message}`);
   if (!data) return null;
-  const summary = toSummary(data as unknown as StoryRow);
+  const row = data as unknown as StoryRow;
   const { data: chapters, error: chapterError } = await supabase
     .from("chapters")
     .select("id, chapter_number, title")
-    .eq("story_id", summary.id)
+    .eq("story_id", row.id)
     .order("chapter_number", { ascending: true });
   if (chapterError) throw new Error(`Không thể tải danh sách chương: ${chapterError.message}`);
-  return { ...summary, chapters: chapters ?? [] };
+  const list = chapters ?? [];
+  return { ...toSummary(row, new Map([[row.id, list.length]])), chapters: list };
 });
 
 // Splits "Tiên Hiệp | Tu Tiên, Huyền Huyễn" into unique genre names.

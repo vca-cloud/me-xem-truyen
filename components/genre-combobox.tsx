@@ -8,7 +8,7 @@ const CREATE_PREFIX = "\u0000create:";
 
 // Multi-select of genres from the catalog. Typing a name that does not exist offers "Thêm thể loại …",
 // which creates it through the admin API and selects it.
-export function GenreCombobox({ catalog, value, onChange, onCreated, id }: { catalog: string[]; value: string[]; onChange: (genres: string[]) => void; onCreated: (name: string) => void; id?: string }) {
+export function GenreCombobox({ catalog, value, onChange, onCreated, id, allowCreate = true, max }: { catalog: string[]; value: string[]; onChange: (genres: string[]) => void; onCreated?: (name: string) => void; id?: string; allowCreate?: boolean; max?: number }) {
   const anchor = useComboboxAnchor();
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
@@ -16,8 +16,8 @@ export function GenreCombobox({ catalog, value, onChange, onCreated, id }: { cat
   const items = useMemo(() => {
     const all = [...new Set([...catalog, ...value])].sort((a, b) => a.localeCompare(b, "vi"));
     const exists = all.some((name) => name.toLocaleLowerCase("vi") === trimmed.toLocaleLowerCase("vi"));
-    return trimmed && !exists ? [...all, CREATE_PREFIX + trimmed] : all;
-  }, [catalog, value, trimmed]);
+    return allowCreate && trimmed && !exists ? [...all, CREATE_PREFIX + trimmed] : all;
+  }, [catalog, value, trimmed, allowCreate]);
 
   async function create(name: string) {
     setPending(true);
@@ -25,7 +25,7 @@ export function GenreCombobox({ catalog, value, onChange, onCreated, id }: { cat
       const response = await fetch("/api/admin/genres", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) { toast.error(body.error ?? "Không thể tạo thể loại."); return false; }
-      onCreated(name);
+      onCreated?.(name);
       toast.success(`Đã thêm thể loại "${name}".`);
       return true;
     } catch {
@@ -38,6 +38,7 @@ export function GenreCombobox({ catalog, value, onChange, onCreated, id }: { cat
 
   async function handleChange(next: string[]) {
     const createItem = next.find((item) => item.startsWith(CREATE_PREFIX));
+    if (max && next.length > max) return toast.error(`Chọn tối đa ${max} thể loại.`);
     if (!createItem) return onChange(next);
     const name = createItem.slice(CREATE_PREFIX.length);
     const kept = next.filter((item) => item !== createItem);
@@ -49,12 +50,12 @@ export function GenreCombobox({ catalog, value, onChange, onCreated, id }: { cat
       <ComboboxValue>
         {(values: string[]) => <Fragment>
           {values.map((name) => <ComboboxChip key={name}>{name}</ComboboxChip>)}
-          <ComboboxChipsInput id={id} placeholder={values.length ? "" : "Gõ để tìm hoặc thêm thể loại..."} disabled={pending} />
+          <ComboboxChipsInput id={id} placeholder={values.length ? "" : allowCreate ? "Gõ để tìm hoặc thêm thể loại..." : "Gõ để tìm thể loại..."} disabled={pending} />
         </Fragment>}
       </ComboboxValue>
     </ComboboxChips>
     <ComboboxContent anchor={anchor}>
-      <ComboboxEmpty>Gõ tên để thêm thể loại mới.</ComboboxEmpty>
+      <ComboboxEmpty>{allowCreate ? "Gõ tên để thêm thể loại mới." : "Không có thể loại phù hợp."}</ComboboxEmpty>
       <ComboboxList>
         {(item: string) => <ComboboxItem key={item} value={item}>
           {item.startsWith(CREATE_PREFIX) ? <span className="font-medium text-primary">+ Thêm thể loại “{item.slice(CREATE_PREFIX.length)}”</span> : item}

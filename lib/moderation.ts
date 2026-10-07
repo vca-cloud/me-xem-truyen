@@ -32,20 +32,15 @@ export async function maskForReaders(text: string) {
 
 export type ChapterModeration = { ads_enabled: boolean; moderation_status: string; moderation_score: number; moderation_hits: unknown; is_mature: boolean; moderated_at: string; moderated_by: string | null };
 
-// Scans one chapter (title + file content) and returns the columns to store.
-// `adsOverride` is the admin's own choice made while publishing: it counts as a manual review.
-export async function moderateChapter(input: { title: string; text_url: string; adsOverride?: boolean; adminId?: string }): Promise<ChapterModeration> {
+// Scores already-loaded text (title + content). `adsOverride` is the admin's own choice: it counts as a review.
+export async function moderateContent(input: { title: string; text: string | null; adsOverride?: boolean; adminId?: string }): Promise<ChapterModeration> {
   const terms = await getModerationTerms();
-  let text = "";
-  try {
-    text = await fetchChapterText(input.text_url);
-  } catch {
-    // Unreadable file: scan the title only and keep the chapter in review so an admin looks at it.
-  }
+  const text = input.text ?? "";
   const result = scanText(`${input.title}\n${text}`, terms);
   const decision = moderationDecision(result);
-  const status = !text ? "pending" : decision.moderation_status;
-  const adsDefault = !text ? false : decision.ads_enabled;
+  // Unreadable content stays in review so an admin looks at it.
+  const status = input.text === null ? "pending" : decision.moderation_status;
+  const adsDefault = input.text === null ? false : decision.ads_enabled;
   const overridden = typeof input.adsOverride === "boolean";
   return {
     ads_enabled: overridden ? input.adsOverride! : adsDefault,
@@ -56,6 +51,17 @@ export async function moderateChapter(input: { title: string; text_url: string; 
     moderated_at: new Date().toISOString(),
     moderated_by: overridden ? input.adminId ?? null : null,
   };
+}
+
+// Scans one chapter by downloading its file first.
+export async function moderateChapter(input: { title: string; text_url: string; adsOverride?: boolean; adminId?: string }): Promise<ChapterModeration> {
+  let text: string | null = null;
+  try {
+    text = await fetchChapterText(input.text_url);
+  } catch {
+    text = null;
+  }
+  return moderateContent({ title: input.title, text, adsOverride: input.adsOverride, adminId: input.adminId });
 }
 
 // Runs moderateChapter over many chapters with limited concurrency (files are fetched from R2).

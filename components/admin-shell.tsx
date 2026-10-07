@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { ShieldAlert, LayoutDashboard, LibraryBig, Users, ShieldCheck, Tags, Settings, HandCoins, Menu, X, Bell, Search, ChevronRight, ExternalLink, LogOut } from "lucide-react";
+import { PenLine, ShieldAlert, LayoutDashboard, LibraryBig, Users, ShieldCheck, Tags, Settings, HandCoins, Menu, X, Bell, Search, ChevronRight, ExternalLink, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "cn";
@@ -13,6 +13,7 @@ const navigation = [
   { href: "/admin", label: "Tổng quan", icon: LayoutDashboard },
   { href: "/admin/truyen", label: "Quản lý truyện", icon: LibraryBig },
   { href: "/admin/kiem-duyet", label: "Kiểm duyệt", icon: ShieldAlert },
+  { href: "/admin/tac-gia", label: "Tác giả", icon: PenLine },
   { href: "/admin/affiliate", label: "Affiliate", icon: HandCoins },
   { href: "/admin/thanh-vien", label: "Thành viên", icon: Users },
   { href: "/admin/quan-tri-vien", label: "Quản trị viên", icon: ShieldCheck },

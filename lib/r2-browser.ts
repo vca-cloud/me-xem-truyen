@@ -86,3 +86,16 @@ export function chapterTitleFromText(text: string, chapterNumber: number) {
   if (!raw) return `Chương ${chapterNumber}`;
   return sentenceCase(raw.normalize("NFC"));
 }
+
+// Uploads chapter text written in the author editor to the public bucket under an unguessable key
+// (random suffix), so the file cannot be found by guessing even though the bucket is public.
+// Needs an R2 token with Object Read & Write on that bucket.
+export async function uploadChapterText(authorId: string, storyId: string, chapterNumber: number, text: string) {
+  const bucket = r2Buckets().public;
+  if (!bucket || !r2ApiReady()) throw new Error("Chưa cấu hình R2 để lưu chương.");
+  const random = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+  const key = `tac-gia/${authorId}/${storyId}/chuong-${chapterNumber}-${random}.txt`;
+  const response = await client().fetch(`${endpoint(bucket)}/${encodeKey(key)}`, { method: "PUT", body: text, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  if (!response.ok) throw new Error(response.status === 403 ? "Khóa R2 chưa có quyền ghi (cần Object Read & Write)." : `R2 trả lỗi HTTP ${response.status} khi lưu chương.`);
+  return contentLinkFor("public", key);
+}

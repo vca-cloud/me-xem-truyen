@@ -7,12 +7,19 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
   const guard = await guardAdminApi(roleAccess.content);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
-  const body = await request.json().catch(() => ({})) as { title?: unknown; text_url?: unknown; ads_enabled?: unknown; is_mature?: unknown; approve?: unknown };
+  const body = await request.json().catch(() => ({})) as { title?: unknown; text_url?: unknown; ads_enabled?: unknown; is_mature?: unknown; approve?: unknown; publish?: unknown; reject?: unknown };
   const update: Record<string, string | boolean | null> = {};
+  // Author chapters: publish (readers can see it) or reject with a reason shown to the author.
+  if (body.publish === true) { update.publish_status = "published"; update.review_note = null; }
+  if (typeof body.reject === "string") {
+    if (!body.reject.trim()) return NextResponse.json({ error: "Vui lòng nhập lý do từ chối." }, { status: 400 });
+    update.publish_status = "rejected";
+    update.review_note = body.reject.trim().slice(0, 500);
+  }
   // Any manual ads/18+/approve decision counts as a review by this admin.
   if (typeof body.ads_enabled === "boolean") update.ads_enabled = body.ads_enabled;
   if (typeof body.is_mature === "boolean") update.is_mature = body.is_mature;
-  if (typeof body.ads_enabled === "boolean" || body.approve === true || typeof body.is_mature === "boolean") {
+  if (typeof body.ads_enabled === "boolean" || body.approve === true || typeof body.is_mature === "boolean" || body.publish === true) {
     update.moderation_status = "approved";
     update.moderated_by = guard.profile.id;
     update.moderated_at = new Date().toISOString();
@@ -31,6 +38,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   if (!data?.length) return NextResponse.json({ error: "Không tìm thấy chương." }, { status: 404 });
   await guard.supabase.from("stories").update({ updated_at: new Date().toISOString() }).eq("id", data[0].story_id);
+  // Publishing makes the chapter (and an author's story) visible, so it also bumps the story to "recently updated".
   return NextResponse.json({ ok: true });
 }
 

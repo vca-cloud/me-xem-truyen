@@ -34,6 +34,8 @@ export default async function AccountPage() {
       <p className="text-sm text-white/90">1 Xu = {vnd.format(COIN_VND)}</p>
     </Card>
 
+    <Card className="flex flex-wrap items-center justify-between gap-3 border-0 bg-white p-6 shadow-sm"><div><h2 className="font-semibold text-[#08729c]">Bạn viết truyện?</h2><p className="text-sm text-slate-500">Đăng truyện của bạn, tự khóa chương bằng Xu và nhận 70% doanh thu.</p></div><Link href="/tac-gia" className="rounded-lg bg-[#08729c] px-4 py-2 text-sm font-medium text-white hover:bg-[#075f82]">Khu vực tác giả</Link></Card>
+
     <Card className="border-0 bg-white p-6 shadow-sm">
       <h2 className="font-semibold text-[#08729c]">Nạp Xu</h2>
       <div className="mt-4 grid gap-3 sm:grid-cols-4">{topupPackages.map((item) => <div key={item.vnd} className="rounded-lg border p-4 text-center"><p className="text-lg font-bold">{vnd.format(item.vnd)}</p><p className="mt-1 text-sm text-slate-600">{formatCoins(item.coins)}</p>{item.bonus > 0 && <p className="mt-1 text-xs font-semibold text-emerald-600">+{formatCoins(item.bonus)} thưởng</p>}</div>)}</div>

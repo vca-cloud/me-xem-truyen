@@ -95,7 +95,11 @@ export async function uploadChapterText(authorId: string, storyId: string, chapt
   if (!bucket || !r2ApiReady()) throw new Error("Chưa cấu hình R2 để lưu chương.");
   const random = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
   const key = `tac-gia/${authorId}/${storyId}/chuong-${chapterNumber}-${random}.txt`;
-  const response = await client().fetch(`${endpoint(bucket)}/${encodeKey(key)}`, { method: "PUT", body: text, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  // Sign first, then send the bytes ourselves: re-sending the signed Request streams the body without a
+  // Content-Length, which R2 rejects with HTTP 411.
+  const body = new TextEncoder().encode(text);
+  const signed = await client().sign(`${endpoint(bucket)}/${encodeKey(key)}`, { method: "PUT", body, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  const response = await fetch(signed.url, { method: "PUT", headers: signed.headers, body });
   if (!response.ok) throw new Error(response.status === 403 ? "Khóa R2 chưa có quyền ghi (cần Object Read & Write)." : `R2 trả lỗi HTTP ${response.status} khi lưu chương.`);
   return contentLinkFor("public", key);
 }

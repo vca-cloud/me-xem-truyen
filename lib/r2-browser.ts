@@ -1,0 +1,91 @@
+import "server-only";
+
+import { AwsClient } from "aws4fetch";
+import { r2Config } from "@/lib/r2";
+
+// Browses R2 buckets through the S3 API (ListObjectsV2). The public r2.dev URL can read single files but cannot list
+// folders, so this needs R2_ACCOUNT_ID + an API token with Object Read (R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY).
+
+export type R2Source = "public" | "private";
+
+export function r2Buckets(): Record<R2Source, string | null> {
+  return { public: process.env.R2_PUBLIC_BUCKET || null, private: r2Config.bucket || null };
+}
+
+export function r2ApiReady() {
+  return !!(r2Config.accountId && r2Config.accessKeyId && r2Config.secretAccessKey);
+}
+
+function client() {
+  return new AwsClient({ accessKeyId: r2Config.accessKeyId!, secretAccessKey: r2Config.secretAccessKey!, service: "s3", region: "auto" });
+}
+
+const endpoint = (bucket: string) => `https://${r2Config.accountId}.r2.cloudflarestorage.com/${encodeURIComponent(bucket)}`;
+const encodeKey = (key: string) => key.split("/").map(encodeURIComponent).join("/");
+
+const xmlDecode = (value: string) => value.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+const tags = (xml: string, tag: string) => [...xml.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "g"))].map((match) => xmlDecode(match[1]));
+
+// Parses one ListObjectsV2 response page.
+export function parseListObjects(xml: string) {
+  const folders = [...xml.matchAll(/<CommonPrefixes>([\s\S]*?)<\/CommonPrefixes>/g)].flatMap((match) => tags(match[1], "Prefix"));
+  const files = [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map((match) => ({ key: tags(match[1], "Key")[0] ?? "", size: Number(tags(match[1], "Size")[0] ?? 0) }));
+  return { folders, files, truncated: tags(xml, "IsTruncated")[0] === "true", next: tags(xml, "NextContinuationToken")[0] ?? null };
+}
+
+// Lists sub-folders and files directly under `prefix` (one level, "/" delimited), following pagination.
+export async function listR2(bucket: string, prefix: string) {
+  const folders: string[] = [];
+  const files: { key: string; size: number }[] = [];
+  let token: string | null = null;
+  for (let page = 0; page < 50; page += 1) {
+    const url = new URL(endpoint(bucket));
+    url.searchParams.set("list-type", "2");
+    url.searchParams.set("delimiter", "/");
+    url.searchParams.set("max-keys", "1000");
+    if (prefix) url.searchParams.set("prefix", prefix);
+    if (token) url.searchParams.set("continuation-token", token);
+    const response = await client().fetch(url.toString(), { cache: "no-store" });
+    if (!response.ok) throw new Error(response.status === 403 ? "Khóa API R2 không có quyền đọc bucket này." : `R2 trả lỗi HTTP ${response.status}.`);
+    const result = parseListObjects(await response.text());
+    folders.push(...result.folders);
+    files.push(...result.files.filter((file) => file.key !== prefix));
+    if (!result.truncated || !result.next) break;
+    token = result.next;
+  }
+  return { folders, files };
+}
+
+// First bytes of an object (enough for the heading line), via a Range request.
+export async function readR2Head(bucket: string, key: string, bytes = 600) {
+  const response = await client().fetch(`${endpoint(bucket)}/${encodeKey(key)}`, { headers: { Range: `bytes=0-${bytes - 1}` }, cache: "no-store" });
+  if (!response.ok && response.status !== 206) return "";
+  // Cut at the last full line so a multi-byte character split by the range does not garble the title.
+  const text = new TextDecoder("utf-8", { fatal: false }).decode(await response.arrayBuffer()).replace(/^﻿/, "");
+  return text.includes("\n") ? text.slice(0, text.lastIndexOf("\n")) : text;
+}
+
+// The link stored in chapters.text_url for an object: public URL for the public bucket, r2:// for the private one.
+export function contentLinkFor(source: R2Source, key: string) {
+  if (source === "private") return `r2://${key}`;
+  return `${(r2Config.publicUrl ?? "").replace(/\/$/, "")}/${encodeKey(key)}`;
+}
+
+// "Chương 12.txt", "chuong-012.txt", "12 - Tên.txt" → 12. Returns null when the file name has no number.
+export function chapterNumberFromFile(fileName: string) {
+  const base = fileName.replace(/\.txt$/i, "");
+  const labelled = base.match(/(?:chương|chuong|tập|tap|chapter|ch)[\s._-]*0*(\d+)/iu);
+  const any = labelled ?? base.match(/(\d+)/);
+  return any ? Number(any[1]) : null;
+}
+
+const titleCase = (value: string) => value.toLocaleLowerCase("vi").replace(/(^|[\s(\-–])(\p{L})/gu, (_, space: string, letter: string) => space + letter.toLocaleUpperCase("vi"));
+
+// Chapter title from the file's first line ("CHƯƠNG 1: BÁN VÀO ĐÔNG CUNG" → "Bán Vào Đông Cung").
+export function chapterTitleFromText(text: string, chapterNumber: number) {
+  const first = text.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? "";
+  const match = first.match(/^(?:chương|chuong|tập|tap|chapter)\s*0*\d+\s*[:.\-–]\s*(.+)$/iu);
+  const raw = (match ? match[1] : "").trim().slice(0, 200);
+  if (!raw) return `Chương ${chapterNumber}`;
+  return raw === raw.toLocaleUpperCase("vi") ? titleCase(raw) : raw;
+}

@@ -164,6 +164,13 @@ Migration `0004_coins.sql`. 1 Xu = 100đ; gói nạp và nhãn trong `lib/coins.
 - Route: `POST /api/coins/unlock`, `POST /api/admin/members/[id]/coins`, trang `/tai-khoan` (ví, lịch sử, chương đã mở), `/admin/thanh-vien` (RPC `admin_list_members()`).
 - Chưa làm: nạp tự động (VietQR/SePay + MoMo doanh nghiệp, tài khoản công ty), R2 riêng tư cho file chương trả phí (file `.txt` hiện vẫn public trên R2 nếu đoán được đường dẫn).
 
+## 8b2. Nhập truyện từ Cloudflare R2
+
+Nút **Nhập từ Cloudflare** (`/admin/truyen`, `components/r2-import-dialog.tsx`): chọn thư mục trong bucket public (`R2_PUBLIC_BUCKET`) hoặc riêng tư (`R2_BUCKET`), liệt kê `.txt` qua S3 ListObjectsV2 (`lib/r2-browser.ts`, `aws4fetch`), sắp theo số trong tên file (`chapterNumberFromFile`), đọc tên chương từ 600 byte đầu (`chapterTitleFromText`). Thư mục trùng slug truyện đã có → chỉ thêm chương chưa có; ngược lại tạo truyện mới (bucket riêng tư mặc định khóa từ chương 1). Link lưu: URL public (mã hóa từng đoạn) hoặc `r2://key`.
+
+- API: `GET /api/admin/r2/folders?source=public|private&prefix=`, `GET /api/admin/r2/preview?source=&prefix=<thư mục/>` (vai trò `content`).
+- Cần `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (token R2 **Object Read only**); r2.dev public không liệt kê được thư mục. Thiếu khóa → API trả 503 và hộp hiện hướng dẫn.
+
 ## 8c. Quy tắc bảo mật
 
 - Link nội dung chương: `https://…` (public, host phải thuộc `R2_PUBLIC_URL`/`CHAPTER_TEXT_HOSTS`) hoặc `r2://đường-dẫn` (bucket R2 riêng tư, đọc bằng `aws4fetch` + `R2_*`). Luôn kiểm bằng `contentUrlError()` và đọc bằng `fetchChapterText()` (`lib/chapter-content.ts`). Chương trả phí nên dùng `r2://`.

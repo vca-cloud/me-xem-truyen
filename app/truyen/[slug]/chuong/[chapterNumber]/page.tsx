@@ -70,8 +70,8 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
     <header className="mb-6 flex items-center justify-between gap-3"><Link href="/" className="flex items-center gap-2 font-semibold text-[#08729c]"><BookOpen className="size-5" />Mê Xem Truyện</Link><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-[#08729c] hover:underline sm:block">{story.title}</Link><AccountMenu tone="light" /></div></header>
     <div className="mb-6">{navigation}</div>
     <Card className="border-0 bg-white p-6 shadow-sm sm:p-10">
-      <p className="mb-2 text-sm text-[#08729c]">{story.title}</p>
-      <h1 className="mb-8 text-2xl font-bold text-[#08729c]">Chương {chapter.chapter_number}: {chapter.title}</h1>
+      <p className="mb-2 truncate text-sm text-[#08729c]">{story.title}</p>
+      <h1 className="mb-8 line-clamp-2 text-2xl font-bold text-[#08729c]" title={`Chương ${chapter.chapter_number}: ${chapter.title}`}>Chương {chapter.chapter_number}: {chapter.title}</h1>
       {locked ? <UnlockBox chapterId={chapter.id} price={access.price} balance={access.balance} loggedIn={!!access.userId} returnPath={returnPath} />
         : error ? <p role="alert" className="rounded-md bg-rose-50 p-4 text-rose-700">{error}</p> : <>
         <AdSlot placement="chapter-top" className="mb-8" />

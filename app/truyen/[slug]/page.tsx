@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen, Bookmark, ExternalLink, Lock } from "lucide-react";
+import { BookOpen, Bookmark, ChevronLeft, ChevronRight, ExternalLink, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AccountMenu } from "@/components/account-menu";
@@ -12,6 +12,8 @@ import { defaultAudioSiteUrl, validTextUrl } from "@/lib/story-data";
 import { chapterPrice, formatCoins } from "@/lib/coins";
 import { getReaderStory } from "@/lib/stories";
 
+const CHAPTERS_PER_COLUMN = 10;
+const CHAPTERS_PER_PAGE = CHAPTERS_PER_COLUMN * 2;
 const dateFormat = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "short" });
 
 export async function generateMetadata({ params }: PageProps<"/truyen/[slug]">): Promise<Metadata> {
@@ -31,8 +33,15 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/tr
   const { slug } = await params;
   const story = await getReaderStory(slug);
   if (!story) notFound();
-  const newestFirst = (await searchParams).thu_tu === "moi";
-  const chapters = newestFirst ? [...story.chapters].reverse() : story.chapters;
+  const query = await searchParams;
+  const newestFirst = query.thu_tu === "moi";
+  const ordered = newestFirst ? [...story.chapters].reverse() : story.chapters;
+  // 20 chapters per page: two columns of at most 10.
+  const pageCount = Math.max(1, Math.ceil(ordered.length / CHAPTERS_PER_PAGE));
+  const page = Math.min(Math.max(Number(query.trang) || 1, 1), pageCount);
+  const chapters = ordered.slice((page - 1) * CHAPTERS_PER_PAGE, page * CHAPTERS_PER_PAGE);
+  const columns = [chapters.slice(0, CHAPTERS_PER_COLUMN), chapters.slice(CHAPTERS_PER_COLUMN)].filter((column) => column.length);
+  const pageHref = (target: number) => `/truyen/${story.slug}?${new URLSearchParams({ ...(newestFirst ? { thu_tu: "moi" } : {}), ...(target > 1 ? { trang: String(target) } : {}) }).toString()}`.replace(/\?$/, "");
   const first = story.chapters[0];
   const latest = story.chapters.at(-1);
   const audioUrl = story.audio_url && validTextUrl(story.audio_url) ? story.audio_url : `${defaultAudioSiteUrl}/truyen/${story.slug}`;
@@ -47,9 +56,9 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/tr
           {coverUrl ? <img src={coverUrl} alt={`Ảnh bìa ${story.title}`} className="size-full object-cover" /> : <span className="absolute inset-x-4 bottom-4 text-lg font-semibold text-white drop-shadow-md">{story.title}</span>}
         </div>
         <div className="min-w-0 space-y-5">
-          <h1 className="text-3xl font-bold tracking-tight text-[#08729c] sm:text-4xl">{story.title}</h1>
-          <div className="grid gap-x-10 gap-y-3 text-base leading-7 sm:grid-cols-2">
-            <div><p><span className="text-[#08729c]">Tác giả:</span> {story.author}</p><p><span className="text-[#08729c]">Thể loại:</span> {story.genres.join(", ") || "Chưa phân loại"}</p></div>
+          <h1 className="line-clamp-2 text-3xl font-bold tracking-tight text-[#08729c] sm:text-4xl" title={story.title}>{story.title}</h1>
+          <div className="grid min-w-0 gap-x-10 gap-y-3 text-base leading-7 sm:grid-cols-2 [&>div]:min-w-0">
+            <div><p className="truncate"><span className="text-[#08729c]">Tác giả:</span> {story.author}</p><p className="truncate" title={story.genres.join(", ")}><span className="text-[#08729c]">Thể loại:</span> {story.genres.join(", ") || "Chưa phân loại"}</p></div>
             <div><p><span className="text-[#08729c]">Trạng thái:</span> <strong className="rounded bg-rose-500 px-2 py-1 text-sm text-white">{story.status}</strong></p><p><span className="text-[#08729c]">Tổng chương:</span> <strong>{story.chapters.length.toLocaleString("vi-VN")} chương</strong></p><p><span className="text-[#08729c]">Cập nhật:</span> {dateFormat.format(new Date(story.updated_at))}</p>{story.lock_from_chapter !== null && <p><span className="text-[#08729c]">Chương trả phí:</span> {story.lock_from_chapter > 1 ? `từ chương ${story.lock_from_chapter}` : "tất cả"}, {formatCoins(story.lock_price_coins)}/chương</p>}</div>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -63,8 +72,29 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/tr
       {story.description && <Card className="border-0 bg-white p-7 text-base leading-8 text-[#08729c] shadow-sm sm:p-8">{story.description.split(/\n\s*\n/).map((paragraph, index) => <p key={index} className="mb-6 whitespace-pre-line last:mb-0">{paragraph}</p>)}</Card>}
       <AdSlot placement="story-detail" disabled={story.ads_disabled} />
       <section>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold text-[#08729c]">Danh sách chương <span className="font-normal">({story.chapters.length})</span></h2><div className="flex gap-2"><Button variant={newestFirst ? "default" : "outline"} size="sm" nativeButton={false} render={<Link href={`/truyen/${story.slug}?thu_tu=moi`} scroll={false} />}>Mới → Cũ</Button><Button variant={newestFirst ? "outline" : "default"} size="sm" nativeButton={false} render={<Link href={`/truyen/${story.slug}`} scroll={false} />}>Cũ → Mới</Button></div></div>
-        <Card className="overflow-hidden border-0 bg-white shadow-sm">{chapters.length ? <div className="sm:columns-2 sm:gap-0 sm:[column-rule:1px_solid_var(--color-border)]">{chapters.map((chapter) => <Link key={chapter.id} href={`/truyen/${story.slug}/chuong/${chapter.chapter_number}`} className="flex min-w-0 break-inside-avoid items-center justify-between gap-3 border-b px-4 py-2.5 text-sm hover:bg-muted/50"><span className="min-w-0 truncate">Chương {chapter.chapter_number}: {chapter.title}</span>{chapterPrice(story, chapter.chapter_number) > 0 ? <span className="flex shrink-0 items-center gap-1 text-xs text-amber-600"><Lock className="size-3" aria-hidden="true" />{formatCoins(story.lock_price_coins)}</span> : <span className="shrink-0 text-xs text-[#08729c]">Miễn phí</span>}</Link>)}</div> : <p className="px-4 py-8 text-center text-sm text-slate-500">Truyện chưa có chương nào.</p>}</Card>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold text-[#08729c]">Danh sách chương <span className="font-normal">({story.chapters.length})</span></h2>
+          <div className="flex gap-2">
+            <Button variant={newestFirst ? "default" : "outline"} size="sm" nativeButton={false} render={<Link href={`/truyen/${story.slug}?thu_tu=moi`} scroll={false} />}>Mới → Cũ</Button>
+            <Button variant={newestFirst ? "outline" : "default"} size="sm" nativeButton={false} render={<Link href={`/truyen/${story.slug}`} scroll={false} />}>Cũ → Mới</Button>
+          </div>
+        </div>
+        <Card className="overflow-hidden border-0 bg-white py-0 shadow-sm">{chapters.length
+          ? <div className="grid sm:grid-cols-2 sm:divide-x">{columns.map((column, columnIndex) => <ul key={columnIndex} className="min-w-0 divide-y">{column.map((chapter) => <li key={chapter.id} className="min-w-0">
+              <Link href={`/truyen/${story.slug}/chuong/${chapter.chapter_number}`} className="flex min-w-0 items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-muted/50">
+                <span className="min-w-0 truncate" title={`Chương ${chapter.chapter_number}: ${chapter.title}`}>Chương {chapter.chapter_number}: {chapter.title}</span>
+                {chapterPrice(story, chapter.chapter_number) > 0 ? <span className="flex shrink-0 items-center gap-1 text-xs text-amber-600"><Lock className="size-3" aria-hidden="true" />{formatCoins(story.lock_price_coins)}</span> : <span className="shrink-0 text-xs text-[#08729c]">Miễn phí</span>}
+              </Link>
+            </li>)}</ul>)}</div>
+          : <p className="px-4 py-8 text-center text-sm text-slate-500">Truyện chưa có chương nào.</p>}</Card>
+        {pageCount > 1 && <nav aria-label="Trang danh sách chương" className="mt-4 flex flex-wrap items-center justify-center gap-1">
+          <Button variant="outline" size="icon-sm" aria-label="Trang trước" disabled={page === 1} nativeButton={false} render={<Link href={pageHref(page - 1)} scroll={false} aria-disabled={page === 1} />}><ChevronLeft /></Button>
+          {Array.from({ length: pageCount }, (_, index) => index + 1).filter((number) => number === 1 || number === pageCount || Math.abs(number - page) <= 2).map((number, index, list) => <span key={number} className="flex items-center gap-1">
+            {index > 0 && number - list[index - 1] > 1 && <span className="px-1 text-muted-foreground">…</span>}
+            <Button variant={number === page ? "default" : "outline"} size="sm" className="min-w-8" aria-label={`Trang ${number}`} aria-current={number === page ? "page" : undefined} nativeButton={false} render={<Link href={pageHref(number)} scroll={false} />}>{number}</Button>
+          </span>)}
+          <Button variant="outline" size="icon-sm" aria-label="Trang sau" disabled={page === pageCount} nativeButton={false} render={<Link href={pageHref(page + 1)} scroll={false} aria-disabled={page === pageCount} />}><ChevronRight /></Button>
+        </nav>}
       </section>
     </main>
     <SiteFooter />

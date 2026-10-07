@@ -73,7 +73,7 @@ export function contentLinkFor(source: R2Source, key: string) {
 
 // "Chương 12.txt", "chuong-012.txt", "12 - Tên.txt" → 12. Returns null when the file name has no number.
 export function chapterNumberFromFile(fileName: string) {
-  const base = fileName.replace(/\.txt$/i, "");
+  const base = fileName.normalize("NFC").replace(/\.txt$/i, "");
   const labelled = base.match(/(?:chương|chuong|tập|tap|chapter|ch)[\s._-]*0*(\d+)/iu);
   const any = labelled ?? base.match(/(\d+)/);
   return any ? Number(any[1]) : null;
@@ -81,11 +81,14 @@ export function chapterNumberFromFile(fileName: string) {
 
 const titleCase = (value: string) => value.toLocaleLowerCase("vi").replace(/(^|[\s(\-–])(\p{L})/gu, (_, space: string, letter: string) => space + letter.toLocaleUpperCase("vi"));
 
+// macOS uploads keep file names decomposed (NFD: "a" + combining mark). Object keys must stay as stored,
+// but anything shown or saved as text (story title, chapter title, file name) is normalized to NFC.
 // Chapter title from the file's first line ("CHƯƠNG 1: BÁN VÀO ĐÔNG CUNG" → "Bán Vào Đông Cung").
 export function chapterTitleFromText(text: string, chapterNumber: number) {
   const first = text.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? "";
   const match = first.match(/^(?:chương|chuong|tập|tap|chapter)\s*0*\d+\s*[:.\-–]\s*(.+)$/iu);
   const raw = (match ? match[1] : "").trim().slice(0, 200);
   if (!raw) return `Chương ${chapterNumber}`;
-  return raw === raw.toLocaleUpperCase("vi") ? titleCase(raw) : raw;
+  const title = raw.normalize("NFC");
+  return title === title.toLocaleUpperCase("vi") ? titleCase(title) : title;
 }

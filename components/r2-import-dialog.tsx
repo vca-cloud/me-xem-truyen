@@ -142,7 +142,7 @@ export function R2ImportDialog({ open, onOpenChange, stories, catalog, onGenreCr
     }
   }
 
-  const folderItems = (folders ?? []).map((value) => ({ value, label: value.replace(/\/$/, "") }));
+  const folderItems = (folders ?? []).map((value) => ({ value, label: value.replace(/\/$/, "").normalize("NFC") }));
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">

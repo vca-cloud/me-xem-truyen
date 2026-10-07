@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       const name = file.key.slice(prefix.length);
       const number = chapterNumberFromFile(name);
       if (number === null || number < 1) { skipped.push(name); return []; }
-      return [{ key: file.key, name, number, size: file.size }];
+      return [{ key: file.key, name: name.normalize("NFC"), number, size: file.size }];
     });
     const seen = new Map<number, string>();
     const duplicates: string[] = [];
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       const heads = await Promise.all(batch.map((file) => readR2Head(bucket, file.key).catch(() => "")));
       batch.forEach((file, i) => chapters.push({ chapter_number: file.number, title: chapterTitleFromText(heads[i], file.number), text_url: contentLinkFor(source, file.key), file: file.name, size: file.size }));
     }
-    const folderName = prefix.replace(/\/$/, "").split("/").pop() ?? "";
+    const folderName = (prefix.replace(/\/$/, "").split("/").pop() ?? "").normalize("NFC");
     return NextResponse.json({ source, prefix, folderName, chapters, skipped, duplicates, truncated: files.length > MAX_FILES });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Không đọc được R2." }, { status: 502 });

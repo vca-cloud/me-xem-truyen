@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BookOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { AccountMenu } from "@/components/account-menu";
+import { ChapterNav } from "@/components/chapter-nav";
 import { AdSenseScript, AdSlot } from "@/components/ads";
 import { UnlockBox } from "@/components/unlock-box";
 import { ViewTracker } from "@/components/view-tracker";
@@ -34,8 +34,6 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
   const index = story ? story.chapters.findIndex((item) => item.chapter_number === Number(chapterNumber)) : -1;
   if (!story || index < 0) notFound();
   const chapter = story.chapters[index];
-  const previous = story.chapters[index - 1];
-  const next = story.chapters[index + 1];
 
   const access = await getChapterAccess(chapter.id, chapterPrice(story, chapter.chapter_number));
   const returnPath = `/truyen/${story.slug}/chuong/${chapter.chapter_number}`;
@@ -62,7 +60,8 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
   // Ads only on chapters whose content actually loaded; never on locked, empty or error pages.
   const showAds = !error && !locked && !story.ads_disabled;
   const blocks = showAds ? splitChapterForAds(content) : [];
-  const navigation = <nav aria-label="Chuyển chương" className="flex justify-between gap-3">{previous ? <Link href={`/truyen/${story.slug}/chuong/${previous.chapter_number}`}><Button variant="outline"><ArrowLeft className="mr-2 size-4" />Chương trước</Button></Link> : <span />}{next ? <Link href={`/truyen/${story.slug}/chuong/${next.chapter_number}`}><Button variant="outline">Chương sau<ArrowRight className="ml-2 size-4" /></Button></Link> : <Link href={`/truyen/${story.slug}`}><Button variant="outline">Về trang truyện</Button></Link>}</nav>;
+  const navItems = story.chapters.map((item) => ({ chapter_number: item.chapter_number, title: item.title, locked: chapterPrice(story, item.chapter_number) > 0 }));
+  const navigation = <ChapterNav storySlug={story.slug} chapters={navItems} current={chapter.chapter_number} />;
 
   return <main className="min-h-screen bg-[#eaf5f7] px-4 py-8 text-[#123047]"><ViewTracker storySlug={story.slug} chapterNumber={chapter.chapter_number} />{showAds && <AdSenseScript />}<div className="mx-auto max-w-4xl">
     <header className="mb-6 flex items-center justify-between gap-3"><Link href="/" className="flex items-center gap-2 font-semibold text-[#08729c]"><BookOpen className="size-5" />Mê Xem Truyện</Link><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-[#08729c] hover:underline sm:block">{story.title}</Link><div className="rounded-lg bg-[#08729c] p-1"><AccountMenu /></div></div></header>
@@ -77,6 +76,6 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
       </>}
     </Card>
     {showAds && <AdSlot placement="chapter-end" className="mb-24 mt-10" />}
-    <div className={showAds ? "" : "mt-6"}>{navigation}</div>
+    <div className="mb-10 mt-6">{navigation}</div>
   </div></main>;
 }

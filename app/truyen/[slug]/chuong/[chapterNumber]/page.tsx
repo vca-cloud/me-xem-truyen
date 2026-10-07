@@ -67,16 +67,16 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
   const navItems = story.chapters.map((item) => ({ chapter_number: item.chapter_number, title: item.title, locked: chapterPrice(story, item.chapter_number) > 0 }));
   const navigation = <ChapterNav storySlug={story.slug} chapters={navItems} current={chapter.chapter_number} />;
 
-  return <main className="min-h-screen bg-background px-4 py-8 text-foreground"><ViewTracker storySlug={story.slug} chapterNumber={chapter.chapter_number} />{showAds && <AdSenseScript />}<div className="mx-auto max-w-4xl">
-    <header className="mb-6 flex items-center justify-between gap-3"><Logo /><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-primary hover:underline sm:block">{story.title}</Link><AccountMenu tone="light" /><ThemeToggle className="bg-background" /></div></header>
+  return <main className="min-h-screen bg-background px-3 py-6 text-foreground sm:px-4 sm:py-8"><ViewTracker storySlug={story.slug} chapterNumber={chapter.chapter_number} />{showAds && <AdSenseScript />}<div className="mx-auto max-w-4xl">
+    <header className="mb-6 flex items-center justify-between gap-2 sm:gap-3"><Logo className="text-3xl" /><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-primary hover:underline sm:block">{story.title}</Link><AccountMenu tone="light" /><ThemeToggle className="bg-background" /></div></header>
     <div className="mb-6">{navigation}</div>
-    <Card className="border-0 bg-card p-6 shadow-sm sm:p-10">
+    <Card className="border-0 bg-card px-4 py-6 shadow-sm sm:p-10">
       <p className="mb-2 truncate text-sm text-primary">{story.title}</p>
-      <h1 className="mb-8 line-clamp-2 text-2xl font-bold text-primary" title={`Chương ${chapter.chapter_number}: ${chapter.title}`}>Chương {chapter.chapter_number}: {chapter.title}</h1>
+      <h1 className="mb-8 line-clamp-2 text-[28px] leading-tight font-bold text-primary sm:text-4xl" title={`Chương ${chapter.chapter_number}: ${chapter.title}`}>Chương {chapter.chapter_number}: {chapter.title}</h1>
       {locked ? <UnlockBox chapterId={chapter.id} price={access.price} balance={access.balance} loggedIn={!!access.userId} returnPath={returnPath} />
-        : error ? <p role="alert" className="rounded-md bg-rose-50 p-4 text-rose-700">{error}</p> : <>
+        : error ? <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-destructive">{error}</p> : <>
         <AdSlot placement="chapter-top" className="mb-8" />
-        <article className="whitespace-pre-wrap text-base leading-8 text-foreground/85">{blocks.map((block, blockIndex) => <div key={blockIndex}>{blockIndex > 0 && <AdSlot placement="chapter-mid" className="my-8" />}{block}</div>)}</article>
+        <article className="whitespace-pre-wrap text-2xl leading-[1.8] text-foreground/90">{blocks.map((block, blockIndex) => <div key={blockIndex}>{blockIndex > 0 && <AdSlot placement="chapter-mid" className="my-8" />}{block}</div>)}</article>
       </>}
     </Card>
     {showAds && <AdSlot placement="chapter-end" className="mb-24 mt-10" />}

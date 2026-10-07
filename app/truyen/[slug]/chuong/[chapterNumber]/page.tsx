@@ -58,9 +58,11 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
     error = "Link nội dung chương không hợp lệ.";
   }
 
-  // Ads only on chapters whose content actually loaded; never on locked, empty or error pages.
-  const showAds = !error && !locked && !story.ads_disabled && chapter.ads_enabled;
-  const blocks = showAds ? splitChapterForAds(content) : [];
+  const showContent = !error && !locked;
+  // Ads need readable content, a story without the ads-off flag and a chapter whose ads are on (moderation).
+  const showAds = showContent && !story.ads_disabled && chapter.ads_enabled === true;
+  // The text is always shown when readable; mid-chapter ad slots are only inserted when ads are allowed.
+  const blocks = showContent ? (showAds ? splitChapterForAds(content) : [content]) : [];
   const navItems = story.chapters.map((item) => ({ chapter_number: item.chapter_number, title: item.title, locked: chapterPrice(story, item.chapter_number) > 0 }));
   const navigation = <ChapterNav storySlug={story.slug} chapters={navItems} current={chapter.chapter_number} />;
 

@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const statuses = ["Đang ra", "Hoàn thành", "Tạm dừng"];
 
-// Updates story details. The title (and therefore the slug/URL) is kept fixed so links and stats stay valid.
+// Updates story details. The slug (URL) never changes, even when the title does, so links and stats stay valid.
 export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/stories/[id]">) {
   try {
     const guard = await guardAdminApi(roleAccess.content);
@@ -17,6 +17,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
     const text = (key: string) => (typeof body[key] === "string" ? (body[key] as string).trim() : undefined);
     const update: Record<string, string | number | boolean | null> = {};
 
+    const title = text("title");
+    if (title !== undefined) { if (!title || title.length > 200) return NextResponse.json({ error: "Tên truyện từ 1 đến 200 ký tự." }, { status: 400 }); update.title = title; }
     const author = text("author");
     if (author !== undefined) { if (!author) return NextResponse.json({ error: "Tác giả là bắt buộc." }, { status: 400 }); update.author = author; }
     const description = text("description");

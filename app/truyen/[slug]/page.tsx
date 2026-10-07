@@ -4,13 +4,13 @@ import { notFound } from "next/navigation";
 import { BookOpen, Bookmark, ChevronLeft, ChevronRight, ExternalLink, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { AccountMenu } from "@/components/account-menu";
 import { AdSenseScript, AdSlot } from "@/components/ads";
 import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import { ViewTracker } from "@/components/view-tracker";
 import { defaultAudioSiteUrl, validTextUrl } from "@/lib/story-data";
 import { chapterPrice, formatCoins } from "@/lib/coins";
-import { getReaderStory } from "@/lib/stories";
+import { getGenreCatalog, getReaderStory } from "@/lib/stories";
 
 const CHAPTERS_PER_COLUMN = 10;
 const CHAPTERS_PER_PAGE = CHAPTERS_PER_COLUMN * 2;
@@ -48,7 +48,7 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/tr
   const coverUrl = story.cover_url && validTextUrl(story.cover_url) ? story.cover_url : null;
 
   return <div className="min-h-screen bg-[#eaf5f7] text-[#123047]"><ViewTracker storySlug={story.slug} />{!story.ads_disabled && <AdSenseScript />}
-    <header className="sticky top-0 z-50 border-b border-white/15 bg-[#08729c] text-white shadow-md"><div className="mx-auto flex h-14 max-w-[1600px] items-center gap-4 px-4 sm:px-6 lg:px-8"><Link href="/" className="shrink-0 text-lg font-bold tracking-tight sm:text-xl"><span className="text-cyan-200">Mê</span> Xem Truyện</Link><div className="ml-auto"><AccountMenu /></div></div></header>
+    <SiteHeader genres={await getGenreCatalog()} />
     <main className="mx-auto max-w-[1300px] space-y-10 px-4 py-7 sm:px-6 lg:px-8"><nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-[#08729c]"><Link href="/" className="hover:underline">Trang chủ</Link><span aria-hidden="true">›</span><span className="min-w-0 truncate text-[#123047]">{story.title}</span></nav>
       <section className="grid gap-8 lg:grid-cols-[290px_1fr]">
         <div className="relative aspect-[4/5] w-full max-w-[290px] overflow-hidden rounded-xl bg-gradient-to-br from-slate-950 via-cyan-950 to-sky-700 shadow-md">

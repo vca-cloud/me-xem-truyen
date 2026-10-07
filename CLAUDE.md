@@ -37,6 +37,7 @@ public/               # Static assets
 - `/truyen/[slug]` — giới thiệu truyện và danh sách chương (`?thu_tu=moi` để xếp mới → cũ); slug không tồn tại trả 404.
 - `/truyen/[slug]/chuong/[chapterNumber]` — đọc chương; nội dung lấy từ `text_url` (file `.txt` public trên R2).
 - `/dang-nhap`, `/dang-ky` — email/password hoặc Google (Turnstile nếu có `NEXT_PUBLIC_TURNSTILE_SITE_KEY`); `?next=` qua `safeInternalPath`.
+- `/tim-kiem` — tìm nâng cao: `q` (tên/tác giả/thể loại, không phân biệt dấu), `the_loai` (slug, phân tách dấu phẩy), `che_do=mot-trong` (mặc định có tất cả), `trang_thai`, `sap_xep` (`cap-nhat`/`moi-dang`/`nhieu-chuong`/`ten`), `trang`; noindex. Logic ở `lib/search.ts`. Header dùng chung `components/site-header.tsx` (menu thể loại lấy từ bảng `genres` qua `getGenreCatalog()`, ô tìm kiếm → `/tim-kiem`) cho trang chủ, trang truyện, trang tìm kiếm.
 - `/tai-khoan` — ví Xu thành viên. `/gioi-thieu`, `/dieu-khoan`, `/chinh-sach-bao-mat`, `/lien-he` — trang thông tin (thông tin công ty lấy từ `lib/site.ts` / `NEXT_PUBLIC_COMPANY_*`).
 - `/sitemap.xml` (truyện + chương miễn phí), `/robots.txt` (chặn admin/api/go/tai-khoan).
 - `/auth/callback` — OAuth callback, đổi code thành session.

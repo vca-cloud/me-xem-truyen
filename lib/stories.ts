@@ -130,3 +130,10 @@ export async function getChapterTextUrl(chapterId: string): Promise<string | nul
   if (error) throw new Error(`Không thể tải chương: ${error.message}`);
   return typeof data === "string" ? data : null;
 }
+
+// Genre catalog created in admin, for the header menu and search filters.
+export const getGenreCatalog = cache(async (): Promise<{ name: string; slug: string }[]> => {
+  const supabase = await createClient();
+  const { data } = await supabase.from("genres").select("name, slug").order("name");
+  return (data ?? []).sort((a, b) => a.name.localeCompare(b.name, "vi"));
+});

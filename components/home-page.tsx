@@ -2,22 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { AccountMenu } from "@/components/account-menu";
 import { AdSenseScript, AdSlot } from "@/components/ads";
 import { SiteFooter } from "@/components/site-footer";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ListFilter,
-  Menu,
-  Moon,
-  Search,
-  Sun,
-} from "lucide-react";
+import { SiteHeader, type HeaderGenre } from "@/components/site-header";
+import { ChevronLeft, ChevronRight, ListFilter } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -32,7 +23,7 @@ function coverColor(slug: string) {
   return coverColors[hash % coverColors.length];
 }
 
-function GenreBadges({ genres }: { genres: string[] }) {
+export function GenreBadges({ genres }: { genres: string[] }) {
   return (
     // One line only: extra genres are clipped with a soft fade instead of wrapping.
     <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden [mask-image:linear-gradient(to_right,black_85%,transparent)]" title={genres.join(", ")}>
@@ -57,47 +48,22 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="mb-4 text-lg font-bold tracking-tight text-foreground sm:text-xl">{children}</h2>;
 }
 
-export function HomePage({ stories, loadError }: { stories: HomeStory[]; loadError: string | null }) {
-  const [query, setQuery] = useState("");
+export function HomePage({ stories, catalog, loadError }: { stories: HomeStory[]; catalog: HeaderGenre[]; loadError: string | null }) {
   const [genre, setGenre] = useState("Tất cả");
   const [page, setPage] = useState(1);
-  const [dark, setDark] = useState(false);
-  const genres = useMemo(() => ["Tất cả", ...[...new Set(stories.flatMap((story) => story.genres))].sort((a, b) => a.localeCompare(b, "vi"))], [stories]);
+  const genres = useMemo(() => ["Tất cả", ...catalog.map((item) => item.name)], [catalog]);
   const newest = useMemo(() => [...stories].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 4), [stories]);
   const updated = stories.slice(0, 8);
   const completed = useMemo(() => stories.filter((story) => story.status === "Hoàn thành").slice(0, 4), [stories]);
   const [now] = useState(() => Date.now());
   const isNew = (story: HomeStory) => now - new Date(story.created_at).getTime() < NEW_DAYS * 86_400_000;
-  const filtered = useMemo(() => stories.filter((story) => (genre === "Tất cả" || story.genres.includes(genre)) && `${story.title} ${story.author}`.toLowerCase().includes(query.toLowerCase())), [stories, genre, query]);
+  const filtered = useMemo(() => genre === "Tất cả" ? stories : stories.filter((story) => story.genres.includes(genre)), [stories, genre]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / 10));
   const pageStories = filtered.slice((page - 1) * 10, page * 10);
 
-  function toggleTheme() {
-    setDark((current) => {
-      const next = !current;
-      document.documentElement.classList.toggle("dark", next);
-      return next;
-    });
-  }
-
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-50 border-b border-white/15 bg-[#08729c] text-white shadow-md">
-        <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-3 px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="shrink-0 text-lg font-bold tracking-tight sm:text-xl"><span className="text-cyan-200">Mê</span> Xem Truyện</Link>
-          <Button variant="outline" size="sm" className="hidden border-white/35 bg-white/5 text-white hover:bg-white/15 hover:text-white sm:inline-flex"><Menu className="mr-2 size-4" />Thể loại</Button>
-          <div className="relative max-w-xl flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/60" />
-            <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Tìm kiếm tên truyện, tác giả..." className="h-9 border-white/30 bg-white/10 pl-9 text-white placeholder:text-white/60 focus-visible:ring-white/50" />
-          </div>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            <AccountMenu />
-            <Button variant="outline" size="icon" aria-label="Đổi giao diện sáng tối" onClick={toggleTheme} className="border-white/35 bg-white/10 text-white hover:bg-white/20 hover:text-white">
-              {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </Button>
-          </div>
-        </div>
-      </header>
+      <SiteHeader genres={catalog} />
 
       <main className="mx-auto max-w-[1600px] space-y-9 px-4 py-8 sm:px-6 lg:px-8">
         <AdSenseScript />

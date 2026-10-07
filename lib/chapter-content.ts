@@ -55,3 +55,10 @@ export async function fetchChapterText(link: string): Promise<string> {
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return (await response.text()).replace(/^﻿/, "");
 }
+
+// Many chapter files start with their own heading ("CHƯƠNG 1: ...", "Tập 3 - ..."), which the page already shows.
+// Drops that first line when it names the same chapter number, so the heading is not repeated.
+export function stripChapterHeading(text: string, chapterNumber: number) {
+  const match = text.match(/^\s*(chương|chuong|tập|tap|chapter)\s*0*(\d+)\b[^\n]*(\r?\n)+/iu);
+  return match && Number(match[2]) === chapterNumber ? text.slice(match[0].length) : text;
+}

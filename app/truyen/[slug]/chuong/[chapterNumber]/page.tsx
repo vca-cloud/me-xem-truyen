@@ -9,7 +9,7 @@ import { AdSenseScript, AdSlot } from "@/components/ads";
 import { UnlockBox } from "@/components/unlock-box";
 import { ViewTracker } from "@/components/view-tracker";
 import { splitChapterForAds } from "@/lib/ads";
-import { fetchChapterText } from "@/lib/chapter-content";
+import { fetchChapterText, stripChapterHeading } from "@/lib/chapter-content";
 import { chapterPrice } from "@/lib/coins";
 import { getChapterAccess, getChapterTextUrl, getStory } from "@/lib/stories";
 
@@ -50,7 +50,7 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
     // Nothing to fetch: the unlock box is shown instead of the text.
   } else if (textUrl) {
     try {
-      content = await fetchChapterText(textUrl);
+      content = stripChapterHeading(await fetchChapterText(textUrl), chapter.chapter_number);
       if (!content.trim()) error = "Chương này chưa có nội dung.";
     } catch {
       error = "Không thể tải nội dung chương. Vui lòng thử lại sau.";

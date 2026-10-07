@@ -1,8 +1,27 @@
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "cn";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function PageHeading({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) { return <div className="mb-7 flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1><p className="mt-1 text-sm text-slate-500">{description}</p></div>{action}</div>; }
-export function StatCard({ title, value, change, icon: Icon, tone = "cyan" }: { title: string; value: string; change: string; icon: React.ElementType; tone?: string }) { return <Card className="border-slate-200 shadow-sm"><CardContent className="p-5"><div className="flex items-start justify-between"><div><p className="text-sm text-slate-500">{title}</p><p className="mt-2 text-2xl font-bold tracking-tight">{value}</p><p className={cn("mt-2 flex items-center gap-1 text-xs font-medium", change.startsWith("-") ? "text-rose-600" : "text-emerald-600")}>{change.startsWith("-") ? <ArrowDownRight className="size-3.5" /> : <ArrowUpRight className="size-3.5" />}{change} so với tháng trước</p></div><div className={cn("rounded-xl p-3", tone === "orange" ? "bg-orange-100 text-orange-600" : tone === "violet" ? "bg-violet-100 text-violet-600" : tone === "emerald" ? "bg-emerald-100 text-emerald-600" : "bg-cyan-100 text-cyan-600")}><Icon className="size-5" /></div></div></CardContent></Card>; }
-export function StatusBadge({ children }: { children: React.ReactNode }) { const value = String(children); return <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-medium", value === "Hoạt động" || value === "Đang ra" ? "bg-emerald-50 text-emerald-700" : value === "Bị khóa" || value === "Tạm dừng" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600")}>{children}</span>; }
-export function TableCard({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) { return <Card className="border-slate-200 shadow-sm"><CardHeader className="flex flex-row items-center justify-between border-b px-5 py-4"><CardTitle className="text-base font-semibold">{title}</CardTitle>{action}</CardHeader><CardContent className="p-0">{children}</CardContent></Card>; }
+export function PageHeading({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) {
+  return <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
+    <div className="min-w-0"><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1><p className="mt-1 text-sm text-muted-foreground">{description}</p></div>
+    {action}
+  </div>;
+}
+
+const positive = new Set(["Hoạt động", "Đang ra", "Đang bật", "Hoàn thành"]);
+const negative = new Set(["Bị khóa", "Tạm dừng", "Đã tắt"]);
+
+// Status label as a shadcn Badge: green for active states, red for paused/locked, neutral otherwise.
+export function StatusBadge({ children }: { children: React.ReactNode }) {
+  const value = String(children);
+  if (positive.has(value)) return <Badge className="bg-emerald-600/10 text-emerald-700 dark:text-emerald-400">{children}</Badge>;
+  if (negative.has(value)) return <Badge variant="destructive">{children}</Badge>;
+  return <Badge variant="secondary">{children}</Badge>;
+}
+
+export function TableCard({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+  return <Card className="gap-0 py-0">
+    <CardHeader className="border-b px-5 py-4 [.border-b]:pb-4"><CardTitle>{title}</CardTitle>{action && <CardAction>{action}</CardAction>}</CardHeader>
+    <CardContent className="px-0">{children}</CardContent>
+  </Card>;
+}

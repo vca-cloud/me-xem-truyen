@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Coins, UserRound } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 
 type Account = { loggedIn: false } | { loggedIn: true; balance: number };
 
@@ -16,7 +18,9 @@ async function loadAccount(): Promise<Account> {
 }
 
 // Header area for readers: login/register links, or the Xu balance and a link to the wallet.
-export function AccountMenu() {
+// tone "dark" sits on the blue site header, "light" on the pale reading background.
+export function AccountMenu({ tone = "dark" }: { tone?: "dark" | "light" }) {
+  const outline = tone === "dark" ? "border-white/35 bg-white/10 text-white hover:bg-white/20 hover:text-white" : "bg-background";
   const [account, setAccount] = useState<Account | null>(null);
   useEffect(() => {
     let active = true;
@@ -26,10 +30,10 @@ export function AccountMenu() {
 
   if (!account) return <div className="h-8 w-28" aria-hidden="true" />;
   if (!account.loggedIn) return <div className="flex shrink-0 items-center gap-2">
-    <Link href="/dang-nhap" className="hidden h-8 items-center rounded-lg border border-white/35 px-2.5 text-sm font-medium text-white hover:bg-white/15 sm:inline-flex">Đăng nhập</Link>
-    <Link href="/dang-ky" className="inline-flex h-8 items-center rounded-lg bg-orange-500 px-2.5 text-sm font-medium text-white hover:bg-orange-600">Đăng ký</Link>
+    <Button variant="outline" className={cn("hidden sm:inline-flex", outline)} nativeButton={false} render={<Link href="/dang-nhap" />}>Đăng nhập</Button>
+    <Button className="bg-orange-500 text-white hover:bg-orange-600" nativeButton={false} render={<Link href="/dang-ky" />}>Đăng ký</Button>
   </div>;
-  return <Link href="/tai-khoan" className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-white/35 bg-white/10 px-2.5 text-sm font-medium text-white hover:bg-white/20" aria-label={`Ví Xu: ${account.balance} Xu`}>
-    <Coins className="size-4 text-amber-300" aria-hidden="true" /><span className="tabular-nums">{account.balance.toLocaleString("vi-VN")}</span><span className="hidden sm:inline">Xu</span><UserRound className="ml-1 size-4" aria-hidden="true" />
-  </Link>;
+  return <Button variant="outline" className={outline} aria-label={`Ví Xu: ${account.balance} Xu`} nativeButton={false} render={<Link href="/tai-khoan" />}>
+    <Coins className="text-amber-400" aria-hidden="true" /><span className="tabular-nums">{account.balance.toLocaleString("vi-VN")}</span><span className="hidden sm:inline">Xu</span><UserRound aria-hidden="true" />
+  </Button>;
 }

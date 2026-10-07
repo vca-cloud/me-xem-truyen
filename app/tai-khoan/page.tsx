@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Coins, Lock } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SignOutButton } from "@/components/sign-out-button";
 import { COIN_VND, coinKindLabels, formatCoins, topupPackages } from "@/lib/coins";
 import { createClient } from "@/lib/supabase/server";
@@ -46,7 +47,7 @@ export default async function AccountPage() {
 
     <Card className="border-0 bg-white p-6 shadow-sm">
       <h2 className="font-semibold text-[#08729c]">Lịch sử Xu</h2>
-      {history?.length ? <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead className="text-xs text-slate-500"><tr><th className="py-2">Thời gian</th><th className="py-2">Nội dung</th><th className="py-2 text-right">Thay đổi</th><th className="py-2 text-right">Số dư</th></tr></thead><tbody>{history.map((item) => <tr key={item.id} className="border-t"><td className="whitespace-nowrap py-2.5 pr-3 text-slate-500">{dateTime.format(new Date(item.created_at))}</td><td className="max-w-72 truncate py-2.5 pr-3">{item.description || coinKindLabels[item.kind] || item.kind}</td><td className={`py-2.5 text-right font-semibold tabular-nums ${item.amount > 0 ? "text-emerald-600" : "text-rose-600"}`}>{item.amount > 0 ? "+" : ""}{item.amount.toLocaleString("vi-VN")}</td><td className="py-2.5 text-right tabular-nums text-slate-500">{item.balance_after.toLocaleString("vi-VN")}</td></tr>)}</tbody></table></div> : <p className="mt-3 text-sm text-slate-500">Chưa có giao dịch nào.</p>}
+      {history?.length ? <Table className="mt-3 min-w-[520px]"><TableHeader><TableRow><TableHead>Thời gian</TableHead><TableHead>Nội dung</TableHead><TableHead className="text-right">Thay đổi</TableHead><TableHead className="text-right">Số dư</TableHead></TableRow></TableHeader><TableBody>{history.map((item) => <TableRow key={item.id}><TableCell className="text-muted-foreground">{dateTime.format(new Date(item.created_at))}</TableCell><TableCell className="max-w-72 truncate">{item.description || coinKindLabels[item.kind] || item.kind}</TableCell><TableCell className={`text-right font-semibold tabular-nums ${item.amount > 0 ? "text-emerald-600" : "text-destructive"}`}>{item.amount > 0 ? "+" : ""}{item.amount.toLocaleString("vi-VN")}</TableCell><TableCell className="text-right tabular-nums text-muted-foreground">{item.balance_after.toLocaleString("vi-VN")}</TableCell></TableRow>)}</TableBody></Table> : <p className="mt-3 text-sm text-slate-500">Chưa có giao dịch nào.</p>}
     </Card>
   </div></main>;
 }

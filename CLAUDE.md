@@ -12,7 +12,10 @@ Supabase là Auth/database; Cloudflare R2 lưu ảnh bìa và file nội dung ch
 ## 2. Công nghệ và cấu trúc
 
 - Next.js 16 App Router, TypeScript strict, React 19, Tailwind CSS 4.
-- shadcn/ui style base-nova; primitive trong `components/ui/`: `button.tsx`, `card.tsx`, `input.tsx`.
+- shadcn/ui style base-nova (Base UI). Component trong `components/ui/`: alert, alert-dialog, badge, button, card, checkbox, combobox, dialog, dropdown-menu, field, input, input-group, label, select, separator, skeleton, sonner, table, tabs, textarea, tooltip. Thêm mới bằng `npx shadcn@latest add <tên>`.
+- Quy ước UI: form dùng `Field`/`FieldLabel`/`FieldDescription`/`FieldError`; hộp nhập dùng `Dialog`; xác nhận xóa dùng `useConfirm()` (`components/confirm-dialog.tsx`, AlertDialog) — không dùng `window.confirm`; thông báo dùng `toast` từ `sonner` (`<Toaster>` trong layout); chọn một giá trị dùng `Select` (truyền `items` để `SelectValue` hiện nhãn); tìm-và-chọn dùng `Combobox` (thể loại: `components/genre-combobox.tsx` nhiều lựa chọn + tạo mới; chọn chương: `components/chapter-nav.tsx`); bảng dùng `Table`; trạng thái dùng `Badge`/`StatusBadge`.
+- `Button` hiển thị thành link phải dùng `nativeButton={false} render={<Link href=… />}` — không lồng `<Button>` trong `<Link>`.
+- Font: Be Vietnam Pro (`next/font/google`, subset vietnamese) qua biến `--font-be-vietnam`.
 - Lucide React cho icon. Biểu đồ dựng bằng CSS/Tailwind, không dùng thư viện chart.
 - `@supabase/supabase-js`, `@supabase/ssr`.
 - Path alias `@/*` trỏ tới thư mục gốc. Mã nguồn đặt trực tiếp tại root; không tạo thư mục dự án lồng nhau.

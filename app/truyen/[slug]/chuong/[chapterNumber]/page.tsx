@@ -64,7 +64,7 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
   const navigation = <ChapterNav storySlug={story.slug} chapters={navItems} current={chapter.chapter_number} />;
 
   return <main className="min-h-screen bg-[#eaf5f7] px-4 py-8 text-[#123047]"><ViewTracker storySlug={story.slug} chapterNumber={chapter.chapter_number} />{showAds && <AdSenseScript />}<div className="mx-auto max-w-4xl">
-    <header className="mb-6 flex items-center justify-between gap-3"><Link href="/" className="flex items-center gap-2 font-semibold text-[#08729c]"><BookOpen className="size-5" />Mê Xem Truyện</Link><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-[#08729c] hover:underline sm:block">{story.title}</Link><div className="rounded-lg bg-[#08729c] p-1"><AccountMenu /></div></div></header>
+    <header className="mb-6 flex items-center justify-between gap-3"><Link href="/" className="flex items-center gap-2 font-semibold text-[#08729c]"><BookOpen className="size-5" />Mê Xem Truyện</Link><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-[#08729c] hover:underline sm:block">{story.title}</Link><AccountMenu tone="light" /></div></header>
     <div className="mb-6">{navigation}</div>
     <Card className="border-0 bg-white p-6 shadow-sm sm:p-10">
       <p className="mb-2 text-sm text-[#08729c]">{story.title}</p>

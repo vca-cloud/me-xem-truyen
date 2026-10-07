@@ -45,7 +45,7 @@ function Cover({ story, badge }: { story: HomeStory; badge?: "NEW" | "FULL" }) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="mb-4 flex items-center gap-2.5 text-lg font-extrabold tracking-tight text-foreground sm:text-xl"><span aria-hidden="true" className="h-5 w-1.5 rounded-full bg-highlight" />{children}</h2>;
+  return <h1 className="mb-4 text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">{children}</h1>;
 }
 
 export function HomePage({ stories, catalog, loadError }: { stories: HomeStory[]; catalog: HeaderGenre[]; loadError: string | null }) {

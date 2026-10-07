@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { SiteFooter } from "@/components/site-footer";
 import { missingCompanyInfo } from "@/lib/site";
 
-export function LegalPage({ title, updated, children }: { title: string; updated: string; children: React.ReactNode }) {
+export function LegalPage({ title, updated, children }: { title: React.ReactNode; updated: string; children: React.ReactNode }) {
   return <div className="min-h-screen bg-background text-foreground">
     <main className="mx-auto max-w-3xl px-4 py-8">
       <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm text-primary hover:underline"><ArrowLeft className="size-4" />Về trang chủ</Link>

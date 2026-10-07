@@ -1,6 +1,6 @@
 // Public site identity used by legal pages, footer and SEO. Fill the NEXT_PUBLIC_* values before launch.
 export const siteInfo = {
-  name: "Mê Xem Truyện",
+  name: "mê xem truyện",
   url: (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, ""),
   description: "Đọc truyện chữ online: tiên hiệp, huyền huyễn, ngôn tình, đô thị và nhiều thể loại khác.",
   company: process.env.NEXT_PUBLIC_COMPANY_NAME ?? "",

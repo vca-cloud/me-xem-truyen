@@ -1,3 +1,4 @@
+import { BrandName } from "@/components/logo";
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal-page";
 import { siteInfo } from "@/lib/site";
@@ -14,7 +15,7 @@ export default function ContactPage() {
       {siteInfo.phone && <li>Điện thoại: {siteInfo.phone}</li>}
     </ul>
     <h2>Yêu cầu gỡ nội dung vi phạm bản quyền</h2>
-    <p>Vui lòng gửi: tên tác phẩm, đường dẫn trên {siteInfo.name}, giấy tờ chứng minh quyền sở hữu và thông tin liên hệ của bạn. Chúng tôi phản hồi trong vòng 3 ngày làm việc.</p>
+    <p>Vui lòng gửi: tên tác phẩm, đường dẫn trên <BrandName />, giấy tờ chứng minh quyền sở hữu và thông tin liên hệ của bạn. Chúng tôi phản hồi trong vòng 3 ngày làm việc.</p>
     <h2>Hỗ trợ nạp Xu</h2>
     <p>Khi nạp Xu bị lỗi, vui lòng gửi email đăng nhập, thời gian chuyển tiền, số tiền và ảnh chụp giao dịch.</p>
   </LegalPage>;

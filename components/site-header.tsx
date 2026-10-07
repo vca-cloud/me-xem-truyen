@@ -24,11 +24,12 @@ export function SiteHeader({ genres, initialQuery = "" }: { genres: HeaderGenre[
     router.push(q ? `/tim-kiem?q=${encodeURIComponent(q)}` : "/tim-kiem");
   }
 
-
   return <header className="sticky top-0 z-50 border-b border-header-foreground/10 bg-header text-header-foreground shadow-md">
-    <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-1.5 gap-y-2 px-4 py-2.5 sm:h-16 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-0 lg:px-8">
+    <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-1.5 gap-y-2 px-4 py-2.5 sm:h-20 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-0 lg:px-8">
       <Logo />
-      {/* Phones: genre menu + search share the second row; from sm up they sit inline (display: contents). */}
+      <ThemeToggle className={`ml-auto sm:order-last sm:ml-0 ${headerButton}`} />
+      {/* Phones: row 1 = logo + theme, row 2 = genre menu, search, account. From sm up the wrapper is
+          display: contents, so everything sits on one line: logo, menu, search, account, theme. */}
       <div className="order-last flex w-full items-center gap-1.5 sm:contents">
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="outline" size="sm" className={`shrink-0 ${headerButton}`} aria-label="Thể loại" />}>
@@ -49,10 +50,7 @@ export function SiteHeader({ genres, initialQuery = "" }: { genres: HeaderGenre[
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-header-foreground/60" />
         <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tên truyện, tác giả, thể loại..." aria-label="Tìm truyện" className="h-9 border-header-foreground/25 bg-header-foreground/10 pl-9 text-header-foreground placeholder:text-header-foreground/60 focus-visible:border-highlight focus-visible:ring-highlight/40 dark:bg-header-foreground/10" />
       </form>
-      </div>
-      <div className="ml-auto flex shrink-0 items-center gap-2">
-        <AccountMenu />
-        <ThemeToggle className={headerButton} />
+      <div className="shrink-0 sm:ml-auto"><AccountMenu /></div>
       </div>
     </div>
   </header>;

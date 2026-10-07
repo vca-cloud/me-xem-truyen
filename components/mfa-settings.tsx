@@ -38,7 +38,7 @@ export function MfaSettings() {
     const supabase = createClient();
     const { data: existing } = await supabase.auth.mfa.listFactors();
     for (const factor of existing?.all ?? []) if (factor.status === "unverified") await supabase.auth.mfa.unenroll({ factorId: factor.id });
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: `Mê Xem Truyện ${new Date().toISOString().slice(0, 16)}` });
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: `mê xem truyện ${new Date().toISOString().slice(0, 16)}` });
     setPending(false);
     if (error || !data) return void toast.error(error?.message ?? "Không thể bắt đầu thiết lập.");
     setEnrollment({ factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret });

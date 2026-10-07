@@ -1,11 +1,12 @@
+import { BrandName } from "@/components/logo";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeading } from "@/components/admin-ui";
 import { MfaSettings } from "@/components/mfa-settings";
 import { siteInfo } from "@/lib/site";
 
 export default function SettingsPage() {
-  const rows: [string, string][] = [
-    ["Tên website", siteInfo.name],
+  const rows: [string, React.ReactNode][] = [
+    ["Tên website", <BrandName key="brand" />],
     ["Địa chỉ web", siteInfo.url],
     ["Đơn vị vận hành", siteInfo.company || "(chưa điền)"],
     ["Mã số thuế", siteInfo.taxCode || "(chưa điền)"],

@@ -1,5 +1,6 @@
 "use client";
 
+import { COVER_ASPECT_CLASS } from "@/lib/cover";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AdSenseScript, AdSlot } from "@/components/ads";
@@ -37,7 +38,7 @@ export function GenreBadges({ genres, className }: { genres: string[]; className
 
 function Cover({ story, badge }: { story: HomeStory; badge?: "NEW" | "FULL" }) {
   return (
-    <div className={`relative aspect-[4/5] overflow-hidden rounded-md bg-gradient-to-br ${coverColor(story.slug)} shadow-sm`}>
+    <div className={`relative ${COVER_ASPECT_CLASS} overflow-hidden rounded-md bg-gradient-to-br ${coverColor(story.slug)} shadow-sm`}>
       {/* eslint-disable-next-line @next/next/no-img-element -- covers come from arbitrary admin-provided hosts */}
       {story.cover_url ? <img src={story.cover_url} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" /> : <><div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,.15),transparent_35%)]" /><span className="absolute inset-x-3 bottom-3 line-clamp-2 text-base font-semibold text-white drop-shadow-md sm:text-lg">{story.title}</span></>}
       {badge && <span className={`absolute left-2.5 top-2.5 rounded px-2 py-0.5 text-[15px] font-bold text-white ${badge === "NEW" ? "bg-highlight" : "bg-[#154B95]"}`}>{badge}</span>}

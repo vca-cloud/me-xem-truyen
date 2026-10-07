@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { COVER_ASPECT_CLASS } from "@/lib/cover";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookOpen, Bookmark, ChevronLeft, ChevronRight, ExternalLink, Lock } from "lucide-react";
@@ -51,7 +52,7 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/tr
     <SiteHeader genres={await getGenreCatalog()} />
     <main className="mx-auto max-w-[1300px] space-y-10 px-4 py-7 sm:px-6 lg:px-8"><nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-primary"><Link href="/" className="hover:underline">Trang chủ</Link><span aria-hidden="true">›</span><span className="min-w-0 truncate text-foreground">{story.title}</span></nav>
       <section className="grid gap-8 lg:grid-cols-[290px_1fr]">
-        <div className="relative aspect-[4/5] w-full max-w-[290px] overflow-hidden rounded-xl bg-gradient-to-br from-[#102D54] via-[#154B95] to-[#2D74A8] shadow-md">
+        <div className={`relative ${COVER_ASPECT_CLASS} w-full max-w-[290px] overflow-hidden rounded-xl bg-gradient-to-br from-[#102D54] via-[#154B95] to-[#2D74A8] shadow-md`}>
           {/* eslint-disable-next-line @next/next/no-img-element -- covers come from arbitrary admin-provided hosts */}
           {coverUrl ? <img src={coverUrl} alt={`Ảnh bìa ${story.title}`} className="size-full object-cover" /> : <span className="absolute inset-x-4 bottom-4 text-lg font-semibold text-white drop-shadow-md">{story.title}</span>}
         </div>

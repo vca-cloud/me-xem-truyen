@@ -71,6 +71,7 @@ API admin: `/api/admin/stories` (POST đăng truyện), `/api/admin/stories/[id]
 ### Trang chi tiết truyện
 
 - Breadcrumb dạng `Trang chủ › Tên truyện`.
+- Ảnh bìa: một file duy nhất tỷ lệ 4:5 (nên 600 × 750 px, JPG/WebP < 150 KB) dùng chung điện thoại và máy tính; mọi khung ảnh bìa dùng `COVER_ASPECT_CLASS` (`lib/cover.ts`), `object-cover` (không méo, sai tỷ lệ thì cắt); ô nhập ảnh ở admin/tác giả hiện `COVER_HINT`.
 - Ảnh bìa (`cover_url`), tác giả, thể loại, trạng thái, tổng chương, ngày cập nhật. Không hiển thị rating/lượt đọc/nhãn HOT khi chưa có dữ liệu thật.
 - Nút đọc từ đầu, đọc mới nhất, Mê Nghe Truyện, tủ sách (đang tắt — chưa làm); mô tả và danh sách chương.
 

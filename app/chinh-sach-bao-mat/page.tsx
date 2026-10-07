@@ -18,7 +18,7 @@ export default function PrivacyPage() {
     <ul>
       <li>Các nhà cung cấp bên thứ ba, bao gồm Google, sử dụng cookie để phân phát quảng cáo dựa trên các lần truy cập trước đây của bạn vào trang web này hoặc các trang web khác.</li>
       <li>Việc Google sử dụng cookie quảng cáo cho phép Google và các đối tác phân phát quảng cáo cho bạn dựa trên lượt truy cập của bạn vào trang web này và/hoặc các trang web khác trên Internet.</li>
-      <li>Bạn có thể tắt quảng cáo được cá nhân hóa tại <a className="text-[#08729c] underline" href="https://adssettings.google.com" target="_blank" rel="noreferrer">Cài đặt quảng cáo của Google</a>, hoặc tắt cookie của các nhà cung cấp bên thứ ba tại <a className="text-[#08729c] underline" href="https://www.aboutads.info/choices" target="_blank" rel="noreferrer">aboutads.info</a>.</li>
+      <li>Bạn có thể tắt quảng cáo được cá nhân hóa tại <a className="text-primary underline" href="https://adssettings.google.com" target="_blank" rel="noreferrer">Cài đặt quảng cáo của Google</a>, hoặc tắt cookie của các nhà cung cấp bên thứ ba tại <a className="text-primary underline" href="https://www.aboutads.info/choices" target="_blank" rel="noreferrer">aboutads.info</a>.</li>
       <li>Liên kết tiếp thị (ví dụ Shopee) có thể đặt cookie của bên bán để ghi nhận đơn hàng.</li>
     </ul>
     <h2>4. Lưu trữ và bảo mật</h2>

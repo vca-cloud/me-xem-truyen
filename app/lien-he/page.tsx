@@ -10,7 +10,7 @@ export default function ContactPage() {
     <ul>
       {siteInfo.company && <li>Đơn vị vận hành: {siteInfo.company}{siteInfo.taxCode && ` (MST ${siteInfo.taxCode})`}</li>}
       {siteInfo.address && <li>Địa chỉ: {siteInfo.address}</li>}
-      <li>Email: {siteInfo.email ? <a className="text-[#08729c] underline" href={`mailto:${siteInfo.email}`}>{siteInfo.email}</a> : "(chưa cập nhật)"}</li>
+      <li>Email: {siteInfo.email ? <a className="text-primary underline" href={`mailto:${siteInfo.email}`}>{siteInfo.email}</a> : "(chưa cập nhật)"}</li>
       {siteInfo.phone && <li>Điện thoại: {siteInfo.phone}</li>}
     </ul>
     <h2>Yêu cầu gỡ nội dung vi phạm bản quyền</h2>

@@ -47,7 +47,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/tim-kiem"
       <Card className="overflow-hidden border-border/70 py-0">
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,8rem)_4.5rem] border-b bg-muted/50 px-4 py-3 text-xs font-semibold sm:grid-cols-[minmax(0,1fr)_minmax(0,10rem)_minmax(0,16rem)_6rem] sm:px-5"><span>Tên truyện</span><span className="hidden truncate sm:block">Tác giả</span><span className="truncate">Thể loại</span><span className="text-right">Chương</span></div>
         {pageResults.map((story) => <div key={story.slug} className="grid grid-cols-[minmax(0,1fr)_minmax(0,8rem)_4.5rem] items-center border-b px-4 py-3 text-sm last:border-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,10rem)_minmax(0,16rem)_6rem] sm:px-5">
-          <div className="min-w-0 pr-3"><Link href={`/truyen/${story.slug}`} className="block truncate font-medium hover:text-primary">{story.title}</Link><p className="truncate text-xs text-muted-foreground sm:hidden">{story.author}</p></div>
+          <div className="min-w-0 pr-3"><Link href={`/truyen/${story.slug}`} className="block truncate font-medium hover:text-highlight">{story.title}</Link><p className="truncate text-xs text-muted-foreground sm:hidden">{story.author}</p></div>
           <span className="hidden truncate pr-3 text-muted-foreground sm:block">{story.author}</span>
           <div className="min-w-0 pr-3"><GenreBadges genres={story.genres} /></div>
           <span className="truncate text-right font-semibold tabular-nums text-primary">{story.chapter_count}</span>

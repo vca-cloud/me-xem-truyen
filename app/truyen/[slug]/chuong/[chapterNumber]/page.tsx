@@ -5,6 +5,7 @@ import { BookOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { AccountMenu } from "@/components/account-menu";
 import { ChapterNav } from "@/components/chapter-nav";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { AdSenseScript, AdSlot } from "@/components/ads";
 import { UnlockBox } from "@/components/unlock-box";
 import { ViewTracker } from "@/components/view-tracker";
@@ -66,16 +67,16 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
   const navItems = story.chapters.map((item) => ({ chapter_number: item.chapter_number, title: item.title, locked: chapterPrice(story, item.chapter_number) > 0 }));
   const navigation = <ChapterNav storySlug={story.slug} chapters={navItems} current={chapter.chapter_number} />;
 
-  return <main className="min-h-screen bg-[#eaf5f7] px-4 py-8 text-[#123047]"><ViewTracker storySlug={story.slug} chapterNumber={chapter.chapter_number} />{showAds && <AdSenseScript />}<div className="mx-auto max-w-4xl">
-    <header className="mb-6 flex items-center justify-between gap-3"><Link href="/" className="flex items-center gap-2 font-semibold text-[#08729c]"><BookOpen className="size-5" />Mê Xem Truyện</Link><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-[#08729c] hover:underline sm:block">{story.title}</Link><AccountMenu tone="light" /></div></header>
+  return <main className="min-h-screen bg-background px-4 py-8 text-foreground"><ViewTracker storySlug={story.slug} chapterNumber={chapter.chapter_number} />{showAds && <AdSenseScript />}<div className="mx-auto max-w-4xl">
+    <header className="mb-6 flex items-center justify-between gap-3"><Link href="/" className="flex items-center gap-2 font-semibold text-primary"><BookOpen className="size-5" />Mê Xem Truyện</Link><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-primary hover:underline sm:block">{story.title}</Link><AccountMenu tone="light" /><ThemeToggle className="bg-background" /></div></header>
     <div className="mb-6">{navigation}</div>
-    <Card className="border-0 bg-white p-6 shadow-sm sm:p-10">
-      <p className="mb-2 truncate text-sm text-[#08729c]">{story.title}</p>
-      <h1 className="mb-8 line-clamp-2 text-2xl font-bold text-[#08729c]" title={`Chương ${chapter.chapter_number}: ${chapter.title}`}>Chương {chapter.chapter_number}: {chapter.title}</h1>
+    <Card className="border-0 bg-card p-6 shadow-sm sm:p-10">
+      <p className="mb-2 truncate text-sm text-primary">{story.title}</p>
+      <h1 className="mb-8 line-clamp-2 text-2xl font-bold text-primary" title={`Chương ${chapter.chapter_number}: ${chapter.title}`}>Chương {chapter.chapter_number}: {chapter.title}</h1>
       {locked ? <UnlockBox chapterId={chapter.id} price={access.price} balance={access.balance} loggedIn={!!access.userId} returnPath={returnPath} />
         : error ? <p role="alert" className="rounded-md bg-rose-50 p-4 text-rose-700">{error}</p> : <>
         <AdSlot placement="chapter-top" className="mb-8" />
-        <article className="whitespace-pre-wrap text-base leading-8 text-slate-700">{blocks.map((block, blockIndex) => <div key={blockIndex}>{blockIndex > 0 && <AdSlot placement="chapter-mid" className="my-8" />}{block}</div>)}</article>
+        <article className="whitespace-pre-wrap text-base leading-8 text-foreground/85">{blocks.map((block, blockIndex) => <div key={blockIndex}>{blockIndex > 0 && <AdSlot placement="chapter-mid" className="my-8" />}{block}</div>)}</article>
       </>}
     </Card>
     {showAds && <AdSlot placement="chapter-end" className="mb-24 mt-10" />}

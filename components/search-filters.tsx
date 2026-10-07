@@ -41,12 +41,12 @@ export function SearchFilters({ catalog, initial }: { catalog: HeaderGenre[]; in
         </div>
         {catalog.length ? <div className="flex flex-wrap gap-2">{catalog.map((genre) => {
           const active = state.genres.includes(genre.slug);
-          return <button key={genre.slug} type="button" aria-pressed={active} onClick={() => toggle(genre.slug)} className={cn("inline-flex max-w-[12rem] items-center gap-1 rounded-full border px-3 py-1 text-sm transition-colors", active ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>{active && <Check className="size-3.5 shrink-0" />}<span className="truncate">{genre.name}</span></button>;
+          return <button key={genre.slug} type="button" aria-pressed={active} onClick={() => toggle(genre.slug)} className={cn("inline-flex max-w-[12rem] items-center gap-1 rounded-full border px-3 py-1 text-sm transition-colors", active ? "border-highlight bg-highlight text-highlight-foreground" : "bg-background hover:border-highlight/60 hover:bg-muted")}>{active && <Check className="size-3.5 shrink-0" />}<span className="truncate">{genre.name}</span></button>;
         })}</div> : <p className="text-sm text-muted-foreground">Chưa có thể loại nào.</p>}
       </div>
       <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variant="outline" onClick={() => { setState({ q: "", genres: [], mode: "tat-ca", status: "", sort: "cap-nhat" }); router.push("/tim-kiem"); }}><RotateCcw />Xóa bộ lọc</Button>
-        <Button type="submit"><Search />Tìm truyện</Button>
+        <Button type="submit" className="bg-highlight text-highlight-foreground hover:bg-highlight/90"><Search />Tìm truyện</Button>
       </div>
     </form>
   </Card>;

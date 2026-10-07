@@ -29,19 +29,19 @@ export function UnlockBox({ chapterId, price, balance, loggedIn, returnPath }: {
     }
   }
 
-  return <div className="relative mt-2 rounded-xl border border-amber-200 bg-gradient-to-b from-amber-50 to-white p-6 text-center">
-    <Lock className="mx-auto size-8 text-amber-500" aria-hidden="true" />
-    <p className="mt-3 text-lg font-semibold text-[#123047]">Chương này cần {formatCoins(price)} để đọc tiếp</p>
-    <p className="mt-1 text-sm text-slate-500">Mở khóa một lần, đọc lại không mất thêm Xu.</p>
+  return <div className="relative mt-2 rounded-xl border border-highlight/30 bg-gradient-to-b from-highlight/10 to-card p-6 text-center">
+    <Lock className="mx-auto size-8 text-highlight" aria-hidden="true" />
+    <p className="mt-3 text-lg font-semibold text-foreground">Chương này cần {formatCoins(price)} để đọc tiếp</p>
+    <p className="mt-1 text-sm text-muted-foreground">Mở khóa một lần, đọc lại không mất thêm Xu.</p>
     {!loggedIn ? <div className="mt-5 flex flex-wrap justify-center gap-2">
-      <Button className="bg-[#08729c] hover:bg-[#075f82]" nativeButton={false} render={<Link href={`/dang-nhap?next=${encodeURIComponent(returnPath)}`} />}>Đăng nhập để mở khóa</Button>
+      <Button className="bg-primary hover:bg-primary/90" nativeButton={false} render={<Link href={`/dang-nhap?next=${encodeURIComponent(returnPath)}`} />}>Đăng nhập để mở khóa</Button>
       <Button variant="outline" nativeButton={false} render={<Link href="/dang-ky" />}>Tạo tài khoản</Button>
     </div> : <>
-      <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm text-slate-600 ring-1 ring-amber-200"><Coins className="size-4 text-amber-500" aria-hidden="true" />Số dư: <strong>{formatCoins(balance ?? 0)}</strong></p>
+      <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1 text-sm text-muted-foreground ring-1 ring-highlight/30"><Coins className="size-4 text-highlight" aria-hidden="true" />Số dư: <strong>{formatCoins(balance ?? 0)}</strong></p>
       <div className="mt-4 flex flex-wrap justify-center gap-2">
         {enough
-          ? <Button onClick={unlock} disabled={pending} className="bg-orange-500 hover:bg-orange-600">{pending ? "Đang mở khóa..." : `Mở khóa – ${formatCoins(price)}`}</Button>
-          : <Button className="bg-orange-500 hover:bg-orange-600" nativeButton={false} render={<Link href="/tai-khoan" />}>Nạp thêm Xu</Button>}
+          ? <Button onClick={unlock} disabled={pending} className="bg-highlight text-highlight-foreground hover:bg-highlight/90">{pending ? "Đang mở khóa..." : `Mở khóa – ${formatCoins(price)}`}</Button>
+          : <Button className="bg-highlight text-highlight-foreground hover:bg-highlight/90" nativeButton={false} render={<Link href="/tai-khoan" />}>Nạp thêm Xu</Button>}
         <Button variant="outline" nativeButton={false} render={<Link href="/tai-khoan" />}>Ví Xu của tôi</Button>
       </div>
     </>}

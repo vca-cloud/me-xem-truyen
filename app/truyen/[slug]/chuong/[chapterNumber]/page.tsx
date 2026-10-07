@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { AccountMenu } from "@/components/account-menu";
+import { Logo } from "@/components/logo";
 import { ChapterNav } from "@/components/chapter-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AdSenseScript, AdSlot } from "@/components/ads";
@@ -68,7 +68,7 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
   const navigation = <ChapterNav storySlug={story.slug} chapters={navItems} current={chapter.chapter_number} />;
 
   return <main className="min-h-screen bg-background px-4 py-8 text-foreground"><ViewTracker storySlug={story.slug} chapterNumber={chapter.chapter_number} />{showAds && <AdSenseScript />}<div className="mx-auto max-w-4xl">
-    <header className="mb-6 flex items-center justify-between gap-3"><Link href="/" className="flex items-center gap-2 font-semibold text-primary"><BookOpen className="size-5" />Mê Xem Truyện</Link><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-primary hover:underline sm:block">{story.title}</Link><AccountMenu tone="light" /><ThemeToggle className="bg-background" /></div></header>
+    <header className="mb-6 flex items-center justify-between gap-3"><Logo /><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-primary hover:underline sm:block">{story.title}</Link><AccountMenu tone="light" /><ThemeToggle className="bg-background" /></div></header>
     <div className="mb-6">{navigation}</div>
     <Card className="border-0 bg-card p-6 shadow-sm sm:p-10">
       <p className="mb-2 truncate text-sm text-primary">{story.title}</p>

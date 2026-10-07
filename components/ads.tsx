@@ -49,7 +49,7 @@ export function AdSlot({ placement, disabled = false, className }: { placement: 
 
   if (!active) return null;
   return <aside aria-label="Quảng cáo" className={cn("mx-auto w-full max-w-3xl", className)}>
-    <p className="mb-1 text-center text-[10px] uppercase tracking-widest text-slate-400">Quảng cáo</p>
+    <p className="mb-1 text-center text-[10px] tracking-wide text-slate-400">Quảng cáo</p>
     {adsPreview
       ? <div className="flex items-center justify-center rounded-md border-2 border-dashed border-amber-300 bg-amber-50 text-xs text-amber-700" style={{ minHeight: config.minHeight }}>{config.label} · {config.format}</div>
       : <ins ref={ref} className="adsbygoogle block" style={{ display: "block", minHeight: config.minHeight }} data-ad-client={adsenseClient} data-ad-slot={config.slot} data-adtest={process.env.NODE_ENV === "production" ? undefined : "on"} {...formatAttributes[config.format]} />}

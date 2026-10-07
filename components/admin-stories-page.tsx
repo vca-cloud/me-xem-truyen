@@ -8,6 +8,8 @@ import { CloudDownload, Download, ExternalLink, FileUp, ListPlus, Pencil, Plus, 
 import { PageHeading, StatusBadge, TableCard } from "@/components/admin-ui";
 import { useConfirm } from "@/components/confirm-dialog";
 import { GenreCombobox } from "@/components/genre-combobox";
+import { HitsBadge, MatureBadge, ModerationStatusBadge, type ModerationHitSummary } from "@/components/moderation-badges";
+import { Switch } from "@/components/ui/switch";
 import { R2ImportDialog } from "@/components/r2-import-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -23,11 +25,11 @@ import { chapterPrice, DEFAULT_LOCK_PRICE, formatCoins } from "@/lib/coins";
 import { parseStoryImportCsv, storyImportTemplate } from "@/lib/story-import";
 import type { StoryStatus } from "@/lib/story-data";
 
-export type AdminStory = { id: string; slug: string; title: string; author: string; description: string; cover_url: string | null; audio_url: string | null; status: StoryStatus; lock_from_chapter: number | null; lock_price_coins: number; ads_disabled: boolean; genres: string[]; chapter_count: number; updated_at: string };
+export type AdminStory = { id: string; slug: string; title: string; author: string; description: string; cover_url: string | null; audio_url: string | null; status: StoryStatus; lock_from_chapter: number | null; lock_price_coins: number; ads_disabled: boolean; genres: string[]; chapter_count: number; updated_at: string; moderation?: { pending: number; mature: number; ads_off: number } };
 export type R2Info = { dashboardBase: string | null; publicBase: string | null };
 type ChapterDraft = { chapter_number: string; title: string; text_url: string };
 type StoryForm = { id?: string; title: string; author: string; description: string; cover_url: string; audio_url: string; status: StoryStatus; genres: string[]; lock_from_chapter: string; lock_price_coins: string; ads_disabled: boolean; chapters: ChapterDraft[] };
-type ExistingChapter = { id: string; chapter_number: number; title: string; text_url: string };
+type ExistingChapter = { id: string; chapter_number: number; title: string; text_url: string; ads_enabled: boolean; moderation_status: string; moderation_hits: ModerationHitSummary[]; is_mature: boolean };
 
 const statuses: StoryStatus[] = ["Đang ra", "Hoàn thành", "Tạm dừng"];
 const statusFilterItems = [{ value: "all", label: "Tất cả trạng thái" }, ...statuses.map((status) => ({ value: status, label: status }))];
@@ -152,6 +154,20 @@ function ChapterManager({ story, onChanged }: { story: AdminStory; onChanged: ()
     if (editing && await run(`/api/admin/chapters/${editing.id}`, jsonInit("PATCH", { title: editing.title, text_url: editing.text_url }), `Đã sửa chương ${editing.chapter_number}.`)) setEditing(null);
   }
 
+  async function toggleAds(chapter: ExistingChapter, adsEnabled: boolean) {
+    await run(`/api/admin/chapters/${chapter.id}`, jsonInit("PATCH", { ads_enabled: adsEnabled }), `Chương ${chapter.chapter_number}: ${adsEnabled ? "bật" : "tắt"} quảng cáo (đã duyệt).`);
+  }
+
+  async function rescan() {
+    setPending(true);
+    const { ok, body } = await requestJson(`/api/admin/stories/${story.id}/moderation`, { method: "POST" });
+    setPending(false);
+    if (!ok) return toast.error(String(body.error ?? "Không quét được."));
+    toast.success(`Đã quét ${body.scanned} chương${Number(body.pending) ? `, ${body.pending} chương cần duyệt` : ", không có chương cần duyệt"}.`);
+    onChanged();
+    await load();
+  }
+
   async function remove(chapter: ExistingChapter) {
     if (await confirm({ title: `Xóa chương ${chapter.chapter_number}?`, description: `"${chapter.title}" sẽ bị xóa khỏi truyện. Chương đã có người mua bằng Xu thì không xóa được.`, confirmText: "Xóa chương", destructive: true })) {
       await run(`/api/admin/chapters/${chapter.id}`, { method: "DELETE" }, `Đã xóa chương ${chapter.chapter_number}.`);
@@ -162,12 +178,18 @@ function ChapterManager({ story, onChanged }: { story: AdminStory; onChanged: ()
     event.preventDefault();
     const problem = chapterError(drafts);
     if (problem) return toast.error(problem);
-    await run(`/api/admin/stories/${story.id}/chapters`, jsonInit("POST", { chapters: toChapterPayload(drafts) }), `Đã thêm ${drafts.length} chương vào "${story.title}".`);
+    setPending(true);
+    const { ok, body } = await requestJson(`/api/admin/stories/${story.id}/chapters`, jsonInit("POST", { chapters: toChapterPayload(drafts) }));
+    setPending(false);
+    if (!ok) return toast.error(String(body.error ?? "Không thể thêm chương."));
+    toast.success(`Đã thêm ${drafts.length} chương vào "${story.title}".`, Number(body.pending) ? { description: `${body.pending} chương cần duyệt — đã tắt quảng cáo.` } : undefined);
+    onChanged();
+    await load();
   }
 
   return <div className="space-y-6">
     <section>
-      <h3 className="mb-2 text-sm font-semibold">Chương hiện có {chapters && `(${chapters.length})`}</h3>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Chương hiện có {chapters && `(${chapters.length})`}</h3><Button type="button" variant="outline" size="sm" disabled={pending} onClick={rescan}>Quét kiểm duyệt lại</Button></div>
       {loadError ? <p className="text-sm text-destructive">{loadError}</p> : !chapters ? <p className="text-sm text-muted-foreground">Đang tải...</p> : chapters.length === 0 ? <p className="text-sm text-muted-foreground">Chưa có chương nào.</p> :
         <div className="max-h-80 divide-y overflow-y-auto rounded-lg border">{chapters.map((chapter) => editing?.id === chapter.id
           ? <form key={chapter.id} onSubmit={saveEdit} className="space-y-2 bg-muted/50 p-3">
@@ -179,7 +201,13 @@ function ChapterManager({ story, onChanged }: { story: AdminStory; onChanged: ()
           : <div key={chapter.id} className="flex items-center gap-3 px-3 py-2 text-sm">
               <span className="w-12 shrink-0 tabular-nums text-muted-foreground">#{chapter.chapter_number}</span>
               <div className="min-w-0 flex-1"><p className="truncate">{chapter.title}</p>{chapter.text_url.startsWith("http") ? <a href={chapter.text_url} target="_blank" rel="noreferrer" className="block truncate text-xs text-primary hover:underline">{decodeURI(chapter.text_url)}</a> : <p className="truncate text-xs text-muted-foreground">{chapter.text_url}</p>}</div>
-              {chapterPrice(story, chapter.chapter_number) > 0 && <Badge variant="outline" className="shrink-0">{formatCoins(story.lock_price_coins)}</Badge>}
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                {chapter.is_mature && <MatureBadge />}
+                <ModerationStatusBadge status={chapter.moderation_status} />
+                <HitsBadge hits={chapter.moderation_hits} />
+                {chapterPrice(story, chapter.chapter_number) > 0 && <Badge variant="outline">{formatCoins(story.lock_price_coins)}</Badge>}
+              </div>
+              <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"><Switch checked={chapter.ads_enabled} disabled={pending} onCheckedChange={(checked) => toggleAds(chapter, checked)} aria-label={`Quảng cáo chương ${chapter.chapter_number}`} />QC</label>
               <Button type="button" variant="ghost" size="icon-sm" aria-label={`Sửa chương ${chapter.chapter_number}`} onClick={() => setEditing(chapter)}><Pencil /></Button>
               <Button type="button" variant="ghost" size="icon-sm" className="text-destructive" aria-label={`Xóa chương ${chapter.chapter_number}`} disabled={pending} onClick={() => remove(chapter)}><Trash2 /></Button>
             </div>)}
@@ -235,7 +263,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
     const { ok, body } = await send("/api/admin/stories/import", { method: "POST", body: formData });
     if (!ok) return setImportErrors((body.errors as string[]) ?? [String(body.error ?? "Không thể import file.")]);
     setImportFile(null);
-    toast.success(`Đã import ${body.stories} truyện và ${body.chapters} chương.`);
+    toast.success(`Đã import ${body.stories} truyện và ${body.chapters} chương.`, Number(body.pending) ? { description: `${body.pending} chương cần duyệt — đã tắt quảng cáo.` } : undefined);
     router.refresh();
   }
 
@@ -249,7 +277,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
       ? await send(`/api/admin/stories/${form.id}`, jsonInit("PATCH", payload))
       : await send("/api/admin/stories", jsonInit("POST", { ...payload, chapters: toChapterPayload(form.chapters) }));
     if (!ok) return setFormError(String(body.error ?? "Không thể lưu truyện."));
-    toast.success(form.id ? `Đã cập nhật "${form.title}".` : `Đã đăng truyện "${form.title}".`);
+    toast.success(form.id ? `Đã cập nhật "${form.title}".` : `Đã đăng truyện "${form.title}".`, Number(body.pending) ? { description: `${body.pending} chương có nội dung cần duyệt — đã tắt quảng cáo, xem ở Kiểm duyệt.` } : undefined);
     setForm(null);
     router.refresh();
   }
@@ -289,7 +317,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
       {filtered.length ? <Table className="min-w-[940px]">
         <TableHeader><TableRow><TableHead className="pl-5">Truyện</TableHead><TableHead>Thể loại</TableHead><TableHead className="text-right">Số chương</TableHead><TableHead>Khóa chương</TableHead><TableHead>Trạng thái</TableHead><TableHead>Cập nhật</TableHead><TableHead className="pr-5"><span className="sr-only">Thao tác</span></TableHead></TableRow></TableHeader>
         <TableBody>{filtered.map((story) => <TableRow key={story.id}>
-          <TableCell className="max-w-72 pl-5"><p className="truncate font-medium">{story.title}</p><p className="truncate text-xs text-muted-foreground">{story.author}</p></TableCell>
+          <TableCell className="max-w-72 pl-5"><p className="flex items-center gap-1.5 truncate font-medium">{story.moderation?.mature ? <MatureBadge /> : null}<span className="truncate">{story.title}</span></p><p className="truncate text-xs text-muted-foreground">{story.author}</p>{story.moderation?.pending ? <button type="button" onClick={() => setChapterTarget(story)} className="mt-1"><Badge variant="destructive">{story.moderation.pending} chương chờ duyệt</Badge></button> : null}</TableCell>
           <TableCell className="max-w-56"><div className="flex flex-wrap gap-1">{story.genres.length ? story.genres.map((genre) => <Badge key={genre} variant="secondary">{genre}</Badge>) : <span className="text-muted-foreground">—</span>}</div></TableCell>
           <TableCell className="text-right tabular-nums">{story.chapter_count}</TableCell>
           <TableCell className="whitespace-nowrap text-muted-foreground">{story.lock_from_chapter === null ? "Miễn phí" : `Từ ch.${story.lock_from_chapter} · ${formatCoins(story.lock_price_coins)}`}{story.ads_disabled && <Badge variant="outline" className="ml-2">Không QC</Badge>}</TableCell>

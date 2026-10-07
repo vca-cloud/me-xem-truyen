@@ -10,12 +10,12 @@ import { SiteFooter } from "@/components/site-footer";
 import { ViewTracker } from "@/components/view-tracker";
 import { defaultAudioSiteUrl, validTextUrl } from "@/lib/story-data";
 import { chapterPrice, formatCoins } from "@/lib/coins";
-import { getStory } from "@/lib/stories";
+import { getReaderStory } from "@/lib/stories";
 
 const dateFormat = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "short" });
 
 export async function generateMetadata({ params }: PageProps<"/truyen/[slug]">): Promise<Metadata> {
-  const story = await getStory((await params).slug);
+  const story = await getReaderStory((await params).slug);
   if (!story) return { title: "Không tìm thấy truyện" };
   const description = (story.description || `Đọc truyện ${story.title} của tác giả ${story.author}.`).replace(/\s+/g, " ").slice(0, 160);
   const cover = story.cover_url && validTextUrl(story.cover_url) ? [story.cover_url] : undefined;
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: PageProps<"/truyen/[slug]">):
 
 export default async function StoryPage({ params, searchParams }: PageProps<"/truyen/[slug]">) {
   const { slug } = await params;
-  const story = await getStory(slug);
+  const story = await getReaderStory(slug);
   if (!story) notFound();
   const newestFirst = (await searchParams).thu_tu === "moi";
   const chapters = newestFirst ? [...story.chapters].reverse() : story.chapters;

@@ -1,10 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { guardAdminApi, roleAccess } from "@/lib/auth";
-import { chapterNumberFromFile, chapterTitleFromText, contentLinkFor, listR2, r2ApiReady, r2Buckets, readR2Head, type R2Source } from "@/lib/r2-browser";
+import { fetchChapterText } from "@/lib/chapter-content";
+import { getModerationTerms } from "@/lib/moderation";
+import { moderationDecision, scanText } from "@/lib/moderation-core";
+import { chapterNumberFromFile, chapterTitleFromText, contentLinkFor, listR2, r2ApiReady, r2Buckets, type R2Source } from "@/lib/r2-browser";
 
 const MAX_FILES = 2000;
 
-// Lists the .txt files of one folder, sorted by chapter number, with titles read from each file's first line.
+// Lists the .txt files of one folder, sorted by chapter number, with titles read from each file's first line
+// and a moderation pre-scan (suggested ads on/off per chapter).
 export async function GET(request: NextRequest) {
   const guard = await guardAdminApi(roleAccess.content);
   if (guard.error) return guard.error;
@@ -32,12 +36,20 @@ export async function GET(request: NextRequest) {
     }
     const unique = numbered.filter((file) => seen.get(file.number) === file.name).sort((a, b) => a.number - b.number);
 
-    // Read headings in small batches to stay polite with the API.
-    const chapters: { chapter_number: number; title: string; text_url: string; file: string; size: number }[] = [];
-    for (let index = 0; index < unique.length; index += 10) {
-      const batch = unique.slice(index, index + 10);
-      const heads = await Promise.all(batch.map((file) => readR2Head(bucket, file.key).catch(() => "")));
-      batch.forEach((file, i) => chapters.push({ chapter_number: file.number, title: chapterTitleFromText(heads[i], file.number), text_url: contentLinkFor(source, file.key), file: file.name, size: file.size }));
+    // Read each file once: the heading gives the title, the full text is scanned by the moderation dictionary.
+    const terms = await getModerationTerms();
+    const chapters: { chapter_number: number; title: string; text_url: string; file: string; size: number; ads_enabled: boolean; flagged: boolean; mature: boolean; hits: { term: string; category: string; severity: number; count: number }[] }[] = [];
+    for (let index = 0; index < unique.length; index += 8) {
+      const batch = unique.slice(index, index + 8);
+      const texts = await Promise.all(batch.map((file) => fetchChapterText(contentLinkFor(source, file.key)).catch(() => null)));
+      batch.forEach((file, i) => {
+        const text = texts[i] ?? "";
+        const title = chapterTitleFromText(text, file.number);
+        const result = scanText(`${title}\n${text}`, terms);
+        const decision = moderationDecision(result);
+        const flagged = texts[i] === null || decision.moderation_status === "pending";
+        chapters.push({ chapter_number: file.number, title, text_url: contentLinkFor(source, file.key), file: file.name, size: file.size, ads_enabled: !flagged, flagged, mature: decision.is_mature, hits: result.hits.slice(0, 6).map(({ term, category, severity, count }) => ({ term, category, severity, count })) });
+      });
     }
     const folderName = (prefix.replace(/\/$/, "").split("/").pop() ?? "").normalize("NFC");
     return NextResponse.json({ source, prefix, folderName, chapters, skipped, duplicates, truncated: files.length > MAX_FILES });

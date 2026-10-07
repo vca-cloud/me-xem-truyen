@@ -10,12 +10,13 @@ import { UnlockBox } from "@/components/unlock-box";
 import { ViewTracker } from "@/components/view-tracker";
 import { splitChapterForAds } from "@/lib/ads";
 import { fetchChapterText, stripChapterHeading } from "@/lib/chapter-content";
+import { maskForReaders } from "@/lib/moderation";
 import { chapterPrice } from "@/lib/coins";
-import { getChapterAccess, getChapterTextUrl, getStory } from "@/lib/stories";
+import { getChapterAccess, getChapterTextUrl, getReaderStory } from "@/lib/stories";
 
 export async function generateMetadata({ params }: PageProps<"/truyen/[slug]/chuong/[chapterNumber]">): Promise<Metadata> {
   const { slug, chapterNumber } = await params;
-  const story = await getStory(slug);
+  const story = await getReaderStory(slug);
   const chapter = story?.chapters.find((item) => item.chapter_number === Number(chapterNumber));
   if (!story || !chapter) return { title: "Không tìm thấy chương" };
   const paid = chapterPrice(story, chapter.chapter_number) > 0;
@@ -30,7 +31,7 @@ export async function generateMetadata({ params }: PageProps<"/truyen/[slug]/chu
 
 export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/chuong/[chapterNumber]">) {
   const { slug, chapterNumber } = await params;
-  const story = await getStory(slug);
+  const story = await getReaderStory(slug);
   const index = story ? story.chapters.findIndex((item) => item.chapter_number === Number(chapterNumber)) : -1;
   if (!story || index < 0) notFound();
   const chapter = story.chapters[index];
@@ -48,7 +49,7 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
     // Nothing to fetch: the unlock box is shown instead of the text.
   } else if (textUrl) {
     try {
-      content = stripChapterHeading(await fetchChapterText(textUrl), chapter.chapter_number);
+      content = await maskForReaders(stripChapterHeading(await fetchChapterText(textUrl), chapter.chapter_number));
       if (!content.trim()) error = "Chương này chưa có nội dung.";
     } catch {
       error = "Không thể tải nội dung chương. Vui lòng thử lại sau.";
@@ -58,7 +59,7 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
   }
 
   // Ads only on chapters whose content actually loaded; never on locked, empty or error pages.
-  const showAds = !error && !locked && !story.ads_disabled;
+  const showAds = !error && !locked && !story.ads_disabled && chapter.ads_enabled;
   const blocks = showAds ? splitChapterForAds(content) : [];
   const navItems = story.chapters.map((item) => ({ chapter_number: item.chapter_number, title: item.title, locked: chapterPrice(story, item.chapter_number) > 0 }));
   const navigation = <ChapterNav storySlug={story.slug} chapters={navItems} current={chapter.chapter_number} />;

@@ -56,15 +56,6 @@ export async function listR2(bucket: string, prefix: string) {
   return { folders, files };
 }
 
-// First bytes of an object (enough for the heading line), via a Range request.
-export async function readR2Head(bucket: string, key: string, bytes = 600) {
-  const response = await client().fetch(`${endpoint(bucket)}/${encodeKey(key)}`, { headers: { Range: `bytes=0-${bytes - 1}` }, cache: "no-store" });
-  if (!response.ok && response.status !== 206) return "";
-  // Cut at the last full line so a multi-byte character split by the range does not garble the title.
-  const text = new TextDecoder("utf-8", { fatal: false }).decode(await response.arrayBuffer()).replace(/^﻿/, "");
-  return text.includes("\n") ? text.slice(0, text.lastIndexOf("\n")) : text;
-}
-
 // The link stored in chapters.text_url for an object: public URL for the public bucket, r2:// for the private one.
 export function contentLinkFor(source: R2Source, key: string) {
   if (source === "private") return `r2://${key}`;

@@ -7,8 +7,16 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
   const guard = await guardAdminApi(roleAccess.content);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
-  const body = await request.json().catch(() => ({})) as { title?: unknown; text_url?: unknown };
-  const update: Record<string, string> = {};
+  const body = await request.json().catch(() => ({})) as { title?: unknown; text_url?: unknown; ads_enabled?: unknown; is_mature?: unknown; approve?: unknown };
+  const update: Record<string, string | boolean | null> = {};
+  // Any manual ads/18+/approve decision counts as a review by this admin.
+  if (typeof body.ads_enabled === "boolean") update.ads_enabled = body.ads_enabled;
+  if (typeof body.is_mature === "boolean") update.is_mature = body.is_mature;
+  if (typeof body.ads_enabled === "boolean" || body.approve === true || typeof body.is_mature === "boolean") {
+    update.moderation_status = "approved";
+    update.moderated_by = guard.profile.id;
+    update.moderated_at = new Date().toISOString();
+  }
   if (typeof body.title === "string") {
     if (!body.title.trim()) return NextResponse.json({ error: "Tên chương không được để trống." }, { status: 400 });
     update.title = body.title.trim().slice(0, 300);

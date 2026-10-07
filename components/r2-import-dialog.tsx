@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FolderOpen, RefreshCw } from "lucide-react";
 import { GenreCombobox } from "@/components/genre-combobox";
+import { HitsBadge, MatureBadge, type ModerationHitSummary } from "@/components/moderation-badges";
+import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +20,7 @@ import { DEFAULT_LOCK_PRICE } from "@/lib/coins";
 import { storySlug, type StoryStatus } from "@/lib/story-data";
 
 type Source = "public" | "private";
-type PreviewChapter = { chapter_number: number; title: string; text_url: string; file: string; size: number };
+type PreviewChapter = { chapter_number: number; title: string; text_url: string; file: string; size: number; ads_enabled: boolean; flagged: boolean; mature: boolean; hits: ModerationHitSummary[]; adsChoice?: boolean };
 type Preview = { source: Source; prefix: string; folderName: string; chapters: PreviewChapter[]; skipped: string[]; duplicates: string[]; truncated: boolean };
 type ExistingStory = { id: string; slug: string; title: string; chapter_count: number };
 
@@ -106,13 +108,20 @@ export function R2ImportDialog({ open, onOpenChange, stories, catalog, onGenreCr
 
   const newChapters = preview ? (target && existingNumbers ? preview.chapters.filter((chapter) => !existingNumbers.has(chapter.chapter_number)) : preview.chapters) : [];
 
+  // Toggling ads here is an admin decision (counts as reviewed); untouched flagged chapters stay in the review queue.
+  function setAds(number: number, adsChoice: boolean) {
+    setPreview((current) => current && { ...current, chapters: current.chapters.map((chapter) => chapter.chapter_number === number ? { ...chapter, adsChoice } : chapter) });
+  }
+
   function updateTitle(number: number, title: string) {
     setPreview((current) => current && { ...current, chapters: current.chapters.map((chapter) => chapter.chapter_number === number ? { ...chapter, title } : chapter) });
   }
 
   async function submit() {
     if (!preview || !newChapters.length) return;
-    const chapters = newChapters.map(({ chapter_number, title, text_url }) => ({ chapter_number, title: title.trim() || `Chương ${chapter_number}`, text_url }));
+    const chapters = newChapters.map(({ chapter_number, title, text_url, adsChoice }) => ({ chapter_number, title: title.trim() || `Chương ${chapter_number}`, text_url, ...(typeof adsChoice === "boolean" ? { ads_enabled: adsChoice } : {}) }));
+    const flaggedCount = newChapters.filter((chapter) => chapter.flagged && typeof chapter.adsChoice !== "boolean").length;
+    const reviewNote = flaggedCount ? { description: `${flaggedCount} chương bị gắn cờ đã tắt quảng cáo và chờ duyệt ở trang Kiểm duyệt.` } : undefined;
     setPending(true);
     try {
       if (target) {
@@ -120,7 +129,7 @@ export function R2ImportDialog({ open, onOpenChange, stories, catalog, onGenreCr
           const { ok, body } = await postJson(`/api/admin/stories/${target.id}/chapters`, { chapters: chapters.slice(index, index + BATCH) });
           if (!ok) return toast.error(String(body.error ?? "Không thể thêm chương."));
         }
-        toast.success(`Đã thêm ${chapters.length} chương mới vào "${target.title}".`);
+        toast.success(`Đã thêm ${chapters.length} chương mới vào "${target.title}".`, reviewNote);
       } else {
         if (!form.title.trim() || !form.author.trim()) return toast.error("Vui lòng nhập tên truyện và tác giả.");
         const [first, ...rest] = [chapters.slice(0, BATCH), ...Array.from({ length: Math.ceil(chapters.length / BATCH) - 1 }, (_, i) => chapters.slice((i + 1) * BATCH, (i + 2) * BATCH))];
@@ -131,7 +140,7 @@ export function R2ImportDialog({ open, onOpenChange, stories, catalog, onGenreCr
           const result = await postJson(`/api/admin/stories/${storyId}/chapters`, { chapters: batch });
           if (!result.ok) return toast.error(String(result.body.error ?? "Không thể thêm chương."));
         }
-        toast.success(`Đã đăng "${form.title}" với ${chapters.length} chương.`);
+        toast.success(`Đã đăng "${form.title}" với ${chapters.length} chương.`, reviewNote);
       }
       onDone();
       onOpenChange(false);
@@ -173,6 +182,7 @@ export function R2ImportDialog({ open, onOpenChange, stories, catalog, onGenreCr
             <AlertDescription>
               {target ? (existingNumbers ? <p>Truyện <b>{target.title}</b> đã có {existingNumbers.size} chương — sẽ thêm <b>{newChapters.length}</b> chương mới{newChapters.length ? ` (số ${newChapters[0].chapter_number}${newChapters.length > 1 ? `–${newChapters.at(-1)!.chapter_number}` : ""})` : ""}.</p> : <p>Đang so với truyện đã đăng...</p>) : <p>Truyện mới — điền tác giả và thể loại rồi bấm Đăng truyện.</p>}
               {preview.skipped.length > 0 && <p className="mt-1">Bỏ qua {preview.skipped.length} file không có số chương: {preview.skipped.slice(0, 5).join(", ")}{preview.skipped.length > 5 ? "…" : ""}</p>}
+              {preview.chapters.some((chapter) => chapter.flagged) && <p className="mt-1">{preview.chapters.filter((chapter) => chapter.flagged).length} chương có từ cần duyệt: quảng cáo mặc định <b>tắt</b> và chờ duyệt. Bật công tắc nếu bạn đã đọc và thấy ổn.</p>}
               {preview.duplicates.length > 0 && <p className="mt-1 text-destructive">Trùng số chương, chỉ lấy file đầu: {preview.duplicates.slice(0, 3).join("; ")}</p>}
             </AlertDescription>
           </Alert>
@@ -185,13 +195,14 @@ export function R2ImportDialog({ open, onOpenChange, stories, catalog, onGenreCr
             <Field><FieldLabel htmlFor="r2-lock">Khóa từ chương số</FieldLabel><Input id="r2-lock" inputMode="numeric" value={form.lock_from_chapter} onChange={(event) => setForm({ ...form, lock_from_chapter: event.target.value })} placeholder="Để trống = miễn phí" /><FieldDescription>Giá mỗi chương: {form.lock_price_coins} Xu (sửa sau trong form truyện).</FieldDescription></Field>
           </div>}
 
-          {newChapters.length > 0 && <div className="max-h-72 overflow-y-auto rounded-lg border">
+          {newChapters.length > 0 && <div className="max-h-80 overflow-auto rounded-lg border">
             <Table>
-              <TableHeader><TableRow><TableHead className="w-16 pl-3">Số</TableHead><TableHead>Tên chương (sửa được)</TableHead><TableHead className="hidden pr-3 sm:table-cell">File</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead className="w-14 pl-3">Số</TableHead><TableHead>Tên chương (sửa được)</TableHead><TableHead>Kiểm duyệt</TableHead><TableHead className="pr-3 text-center">Quảng cáo</TableHead></TableRow></TableHeader>
               <TableBody>{newChapters.map((chapter) => <TableRow key={chapter.chapter_number}>
                 <TableCell className="pl-3 tabular-nums">{chapter.chapter_number}</TableCell>
                 <TableCell><Input aria-label={`Tên chương ${chapter.chapter_number}`} value={chapter.title} onChange={(event) => updateTitle(chapter.chapter_number, event.target.value)} className="h-7" /></TableCell>
-                <TableCell className="hidden max-w-48 truncate pr-3 text-xs text-muted-foreground sm:table-cell">{chapter.file}</TableCell>
+                <TableCell><div className="flex flex-wrap items-center gap-1">{chapter.mature && <MatureBadge />}{chapter.flagged ? <Badge variant="destructive">Chờ duyệt</Badge> : <Badge variant="secondary">Sạch</Badge>}<HitsBadge hits={chapter.hits} /></div></TableCell>
+                <TableCell className="pr-3 text-center"><Switch checked={chapter.adsChoice ?? chapter.ads_enabled} onCheckedChange={(checked) => setAds(chapter.chapter_number, checked)} aria-label={`Quảng cáo chương ${chapter.chapter_number}`} /></TableCell>
               </TableRow>)}</TableBody>
             </Table>
           </div>}

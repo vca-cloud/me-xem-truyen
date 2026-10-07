@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { guardAdminApi, roleAccess } from "@/lib/auth";
 import { contentUrlError } from "@/lib/chapter-content";
+import { moderateChapters } from "@/lib/moderation";
 import { touchStory } from "@/lib/stories";
 import { createClient } from "@/lib/supabase/server";
 
-type ChapterInput = { chapter_number?: unknown; title?: unknown; text_url?: unknown };
+type ChapterInput = { chapter_number?: unknown; title?: unknown; text_url?: unknown; ads_enabled?: unknown };
 
 // Adds new chapters to an existing story. Existing chapter numbers are rejected, never overwritten.
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/admin/stories/[id]/chapters">) {
@@ -20,6 +21,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/admin/s
       chapter_number: Number(chapter.chapter_number),
       title: typeof chapter.title === "string" ? chapter.title.trim() : "",
       text_url: typeof chapter.text_url === "string" ? chapter.text_url.trim() : "",
+      adsOverride: typeof chapter.ads_enabled === "boolean" ? chapter.ads_enabled : undefined,
     }));
     const invalid = chapters.findIndex((chapter) => !Number.isInteger(chapter.chapter_number) || chapter.chapter_number < 1 || !chapter.title || contentUrlError(chapter.text_url));
     if (invalid >= 0) return NextResponse.json({ error: `Chương thứ ${invalid + 1}: ${contentUrlError(chapters[invalid].text_url) ?? "cần số chương, tên chương và link nội dung hợp lệ."}` }, { status: 400 });
@@ -28,10 +30,12 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/admin/s
     const supabase = await createClient();
     const { data: existing } = await supabase.from("chapters").select("chapter_number").eq("story_id", id).in("chapter_number", chapters.map((chapter) => chapter.chapter_number));
     if (existing?.length) return NextResponse.json({ error: `Chương đã tồn tại: ${existing.map((chapter) => chapter.chapter_number).join(", ")}.` }, { status: 409 });
-    const { error } = await supabase.from("chapters").insert(chapters.map((chapter) => ({ ...chapter, story_id: id })));
+    // Moderation runs before saving: flagged chapters start with ads off and wait for review.
+    const moderation = await moderateChapters(chapters, guard.profile.id);
+    const { error } = await supabase.from("chapters").insert(chapters.map((chapter, index) => ({ chapter_number: chapter.chapter_number, title: chapter.title, text_url: chapter.text_url, ...moderation[index], story_id: id })));
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     await touchStory(supabase, id);
-    return NextResponse.json({ added: chapters.length }, { status: 201 });
+    return NextResponse.json({ added: chapters.length, pending: moderation.filter((item) => item.moderation_status === "pending").length, adsOff: moderation.filter((item) => !item.ads_enabled).length }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Bạn không có quyền hoặc máy chủ chưa sẵn sàng." }, { status: 500 });
   }

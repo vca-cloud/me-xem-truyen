@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parseStoryImportCsv, type ImportRow } from "@/lib/story-import";
 import { storySlug } from "@/lib/story-data";
 import { contentUrlError } from "@/lib/chapter-content";
+import { moderateChapters } from "@/lib/moderation";
 import { setStoryGenres } from "@/lib/stories";
 import { parseLockSettings } from "@/lib/coins";
 
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
     if (existing?.length) return NextResponse.json({ error: `Truyện đã tồn tại: ${existing.map((item) => item.slug).join(", ")}.` }, { status: 409 });
 
     const insertedStoryIds: string[] = [];
+    let pending = 0;
     try {
       for (let index = 0; index < stories.length; index += 1) {
         const row = stories[index];
@@ -48,7 +50,9 @@ export async function POST(request: Request) {
         if (error || !story) throw new Error(`Dòng ${row.line}: ${error?.message ?? "Không thể tạo truyện."}`);
         insertedStoryIds.push(story.id);
         const chapterRows = (grouped.get(row.title.toLocaleLowerCase()) ?? []).map((chapter) => ({ story_id: story.id, chapter_number: chapter.chapter_number, title: chapter.chapter_title, text_url: chapter.text_url }));
-        const { error: chapterError } = await supabase.from("chapters").insert(chapterRows);
+        const moderation = await moderateChapters(chapterRows, guard.profile.id);
+        pending += moderation.filter((item) => item.moderation_status === "pending").length;
+        const { error: chapterError } = await supabase.from("chapters").insert(chapterRows.map((chapter, index) => ({ ...chapter, ...moderation[index] })));
         if (chapterError) throw new Error(`Truyện "${row.title}": ${chapterError.message}`);
         await setStoryGenres(supabase, story.id, row.genres);
       }
@@ -56,7 +60,7 @@ export async function POST(request: Request) {
       if (insertedStoryIds.length) await supabase.from("stories").delete().in("id", insertedStoryIds);
       return NextResponse.json({ error: error instanceof Error ? error.message : "Không thể import dữ liệu." }, { status: 400 });
     }
-    return NextResponse.json({ stories: stories.length, chapters: parsed.rows.length }, { status: 201 });
+    return NextResponse.json({ stories: stories.length, chapters: parsed.rows.length, pending }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Bạn không có quyền hoặc máy chủ chưa sẵn sàng." }, { status: 500 });
   }

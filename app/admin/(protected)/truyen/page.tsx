@@ -4,13 +4,14 @@ import { listStories, type StorySummary } from "@/lib/stories";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function StoriesPage() {
-  let stories: StorySummary[] = [];
+  let stories: (StorySummary & { moderation: { pending: number; mature: number; ads_off: number } })[] = [];
   let genres: string[] = [];
   let loadError: string | null = null;
   try {
     const supabase = await createClient();
-    const [list, { data: genreRows }] = await Promise.all([listStories(), supabase.from("genres").select("name").order("name")]);
-    stories = list;
+    const [list, { data: genreRows }, { data: summary }] = await Promise.all([listStories(), supabase.from("genres").select("name").order("name"), supabase.rpc("admin_moderation_summary")]);
+    const byStory = new Map(((summary ?? []) as { story_id: string; pending: number; mature: number; ads_off: number }[]).map((row) => [row.story_id, row]));
+    stories = list.map((story) => ({ ...story, moderation: byStory.get(story.id) ?? { pending: 0, mature: 0, ads_off: 0 } }));
     genres = (genreRows ?? []).map((genre) => genre.name);
   } catch (error) {
     loadError = error instanceof Error ? error.message : "Lỗi không xác định.";

@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { maskForReaders } from "@/lib/moderation";
 import { createClient } from "@/lib/supabase/server";
 import { storySlug, type Chapter, type StoryStatus } from "@/lib/story-data";
 
@@ -23,7 +24,7 @@ export type StorySummary = {
   updated_at: string;
 };
 
-export type StoryDetail = StorySummary & { chapters: Required<Pick<Chapter, "id" | "chapter_number" | "title">>[] };
+export type StoryDetail = StorySummary & { chapters: (Required<Pick<Chapter, "id" | "chapter_number" | "title">> & { ads_enabled: boolean })[] };
 
 type StoryRow = Omit<StorySummary, "genres" | "chapter_count"> & {
   story_genres: { genres: { name: string } | null }[] | null;
@@ -65,12 +66,24 @@ export const getStory = cache(async (slug: string): Promise<StoryDetail | null> 
   const row = data as unknown as StoryRow;
   const { data: chapters, error: chapterError } = await supabase
     .from("chapters")
-    .select("id, chapter_number, title")
+    .select("id, chapter_number, title, ads_enabled")
     .eq("story_id", row.id)
     .order("chapter_number", { ascending: true });
   if (chapterError) throw new Error(`Không thể tải danh sách chương: ${chapterError.message}`);
   const list = chapters ?? [];
   return { ...toSummary(row, new Map([[row.id, list.length]])), chapters: list };
+});
+
+// Story as shown to readers: dictionary words masked in the title, description and chapter titles.
+export const getReaderStory = cache(async (slug: string): Promise<StoryDetail | null> => {
+  const story = await getStory(slug);
+  if (!story) return null;
+  const [title, description, chapterTitles] = await Promise.all([
+    maskForReaders(story.title),
+    maskForReaders(story.description),
+    Promise.all(story.chapters.map((chapter) => maskForReaders(chapter.title))),
+  ]);
+  return { ...story, title, description, chapters: story.chapters.map((chapter, index) => ({ ...chapter, title: chapterTitles[index] })) };
 });
 
 // Splits "Tiên Hiệp | Tu Tiên, Huyền Huyễn" into unique genre names.

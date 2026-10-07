@@ -26,8 +26,10 @@ export function SiteHeader({ genres, initialQuery = "" }: { genres: HeaderGenre[
 
 
   return <header className="sticky top-0 z-50 border-b border-header-foreground/10 bg-header text-header-foreground shadow-md">
-    <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-2 gap-y-2 px-4 py-2.5 sm:h-14 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-0 lg:px-8">
+    <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-1.5 gap-y-2 px-4 py-2.5 sm:h-16 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-0 lg:px-8">
       <Logo />
+      {/* Phones: genre menu + search share the second row; from sm up they sit inline (display: contents). */}
+      <div className="order-last flex w-full items-center gap-1.5 sm:contents">
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="outline" size="sm" className={`shrink-0 ${headerButton}`} aria-label="Thể loại" />}>
           <Menu /><span className="hidden sm:inline">Thể loại</span>
@@ -43,10 +45,11 @@ export function SiteHeader({ genres, initialQuery = "" }: { genres: HeaderGenre[
           <DropdownMenuItem render={<Link href="/tim-kiem" />}><SlidersHorizontal />Tìm nâng cao (nhiều thể loại)</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <form onSubmit={search} role="search" className="relative order-last w-full min-w-0 sm:order-none sm:w-auto sm:max-w-xl sm:flex-1">
+      <form onSubmit={search} role="search" className="relative min-w-0 flex-1 sm:max-w-xl">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-header-foreground/60" />
         <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tên truyện, tác giả, thể loại..." aria-label="Tìm truyện" className="h-9 border-header-foreground/25 bg-header-foreground/10 pl-9 text-header-foreground placeholder:text-header-foreground/60 focus-visible:border-highlight focus-visible:ring-highlight/40 dark:bg-header-foreground/10" />
       </form>
+      </div>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <AccountMenu />
         <ThemeToggle className={headerButton} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { COVER_HINT } from "@/lib/cover";
+import { CoverUploader } from "@/components/cover-uploader";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -349,7 +350,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
             <Field><FieldLabel htmlFor="story-genres">Thể loại</FieldLabel><GenreCombobox id="story-genres" catalog={catalog} value={form.genres} onChange={(genres) => setForm((current) => current && { ...current, genres })} onCreated={(name) => setCatalog((items) => [...items, name])} /><FieldDescription>Chọn từ danh mục, hoặc gõ tên mới rồi chọn “Thêm thể loại”.</FieldDescription></Field>
             <Field><FieldLabel htmlFor="story-description">Mô tả</FieldLabel><Textarea id="story-description" rows={4} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field><FieldLabel htmlFor="story-cover">Link ảnh bìa (tùy chọn)</FieldLabel><Input id="story-cover" type="url" value={form.cover_url} onChange={(event) => setForm({ ...form, cover_url: event.target.value })} placeholder="https://..." /><FieldDescription>{COVER_HINT}</FieldDescription></Field>
+              <Field><FieldLabel htmlFor="story-cover">Ảnh bìa (tùy chọn)</FieldLabel><CoverUploader id="story-cover" value={form.cover_url} onChange={(cover_url) => setForm((current) => current && { ...current, cover_url })} uploadUrl="/api/admin/covers" /><FieldDescription>{COVER_HINT}</FieldDescription></Field>
               <Field><FieldLabel htmlFor="story-audio">Link Mê Nghe Truyện (tùy chọn)</FieldLabel><Input id="story-audio" type="url" value={form.audio_url} onChange={(event) => setForm({ ...form, audio_url: event.target.value })} placeholder="https://..." /></Field>
             </div>
             <Field><FieldLabel>Trạng thái</FieldLabel>

@@ -1,6 +1,7 @@
 "use client";
 
 import { COVER_HINT } from "@/lib/cover";
+import { CoverUploader } from "@/components/cover-uploader";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -96,7 +97,7 @@ export function AuthorStoryDialog({ open, onOpenChange, story, catalog }: { open
           <Field><FieldLabel htmlFor="s-genres">Thể loại (tối đa 5)</FieldLabel><GenreCombobox id="s-genres" catalog={catalog} value={form.genres} onChange={(genres) => setForm((current) => ({ ...current, genres }))} allowCreate={false} max={5} /></Field>
           <Field><FieldLabel htmlFor="s-desc">Giới thiệu truyện</FieldLabel><Textarea id="s-desc" rows={4} maxLength={5000} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field><FieldLabel htmlFor="s-cover">Link ảnh bìa (tùy chọn)</FieldLabel><Input id="s-cover" type="url" value={form.cover_url} onChange={(event) => setForm({ ...form, cover_url: event.target.value })} placeholder="https://..." /><FieldDescription>{COVER_HINT}</FieldDescription></Field>
+            <Field><FieldLabel htmlFor="s-cover">Ảnh bìa (tùy chọn)</FieldLabel><CoverUploader id="s-cover" value={form.cover_url} onChange={(cover_url) => setForm((current) => current && { ...current, cover_url })} uploadUrl="/api/author/covers" /><FieldDescription>{COVER_HINT}</FieldDescription></Field>
             <Field><FieldLabel>Trạng thái</FieldLabel><Select items={statuses.map((value) => ({ value, label: value }))} value={form.status} onValueChange={(value) => setForm({ ...form, status: value as StoryStatus })}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{statuses.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></Field>
           </div>
           <div className="grid gap-4 rounded-lg border border-amber-200 bg-amber-50/50 p-4 sm:grid-cols-2 dark:border-amber-900 dark:bg-amber-950/20">

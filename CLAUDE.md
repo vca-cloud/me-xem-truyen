@@ -71,7 +71,7 @@ API admin: `/api/admin/stories` (POST đăng truyện), `/api/admin/stories/[id]
 ### Trang chi tiết truyện
 
 - Breadcrumb dạng `Trang chủ › Tên truyện`.
-- Ảnh bìa: một file duy nhất tỷ lệ 4:5 (nên 600 × 750 px, JPG/WebP < 150 KB) dùng chung điện thoại và máy tính; mọi khung ảnh bìa dùng `COVER_ASPECT_CLASS` (`lib/cover.ts`), `object-cover` (không méo, sai tỷ lệ thì cắt); ô nhập ảnh ở admin/tác giả hiện `COVER_HINT`.
+- Ảnh bìa: khung 4:5 ở mọi nơi (`COVER_ASPECT_CLASS`, `lib/cover.ts`), `object-cover`. Tải ảnh trong form truyện (admin + tác giả) bằng `components/cover-uploader.tsx`: cắt 4:5 bằng `react-easy-crop`, trình duyệt xuất 600×750 + 300×375 WebP (JPEG nếu trình duyệt không mã hóa được WebP), gửi `POST /api/admin/covers` (vai trò `content`) hoặc `/api/author/covers`. Server (`lib/cover-storage.ts`) đọc header file kiểm định dạng/kích thước/dung lượng, lưu R2 public `covers/<uuid>.webp` + `-sm`, `Cache-Control` 1 năm. Hiển thị qua `coverImageProps()` (srcset, width/height; trang chủ lazy, trang truyện `fetchPriority=high`). Thay/bỏ ảnh hoặc xóa truyện → `deleteCoverIfUnused()` xóa file trên R2. Vẫn nhận link dán tay (host khác thì không có srcset).
 - Ảnh bìa (`cover_url`), tác giả, thể loại, trạng thái, tổng chương, ngày cập nhật. Không hiển thị rating/lượt đọc/nhãn HOT khi chưa có dữ liệu thật.
 - Nút đọc từ đầu, đọc mới nhất, Mê Nghe Truyện, tủ sách (đang tắt — chưa làm); mô tả và danh sách chương.
 

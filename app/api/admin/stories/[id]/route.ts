@@ -4,6 +4,8 @@ import { validTextUrl } from "@/lib/story-data";
 import { parseGenreNames, setStoryGenres } from "@/lib/stories";
 import { parseLockSettings } from "@/lib/coins";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient, serviceRoleReady } from "@/lib/supabase/admin";
+import { deleteCoverIfUnused } from "@/lib/cover-storage";
 
 const statuses = ["Đang ra", "Hoàn thành", "Tạm dừng"];
 
@@ -40,8 +42,11 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
     }
 
     const supabase = await createClient();
+    const previous = "cover_url" in update ? (await supabase.from("stories").select("cover_url").eq("id", id).maybeSingle()).data?.cover_url : null;
     const { error } = await supabase.from("stories").update({ ...update, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    // A replaced uploaded cover is removed from R2 (only when no other story still uses it).
+    if (previous && previous !== update.cover_url && serviceRoleReady()) await deleteCoverIfUnused(createServiceClient(), previous);
     if (body.genres !== undefined) await setStoryGenres(supabase, id, parseGenreNames(body.genres));
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -56,9 +61,11 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/admi
     if (guard.error) return guard.error;
     const { id } = await ctx.params;
     const supabase = await createClient();
+    const cover = (await supabase.from("stories").select("cover_url").eq("id", id).maybeSingle()).data?.cover_url;
     const { error, count } = await supabase.from("stories").delete({ count: "exact" }).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     if (!count) return NextResponse.json({ error: "Không tìm thấy truyện hoặc bạn không có quyền xóa." }, { status: 404 });
+    if (cover && serviceRoleReady()) await deleteCoverIfUnused(createServiceClient(), cover);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Bạn không có quyền hoặc máy chủ chưa sẵn sàng." }, { status: 500 });

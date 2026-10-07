@@ -103,3 +103,23 @@ export async function uploadChapterText(authorId: string, storyId: string, chapt
   if (!response.ok) throw new Error(response.status === 403 ? "Khóa R2 chưa có quyền ghi (cần Object Read & Write)." : `R2 trả lỗi HTTP ${response.status} khi lưu chương.`);
   return contentLinkFor("public", key);
 }
+
+// Writes one object to the public bucket (cover images). Returns its public URL.
+export async function putPublicObject(key: string, body: Uint8Array<ArrayBuffer>, contentType: string, cacheControl?: string) {
+  const bucket = r2Buckets().public;
+  if (!bucket || !r2ApiReady()) throw new Error("Chưa cấu hình R2 để lưu ảnh.");
+  const headers: Record<string, string> = { "Content-Type": contentType, ...(cacheControl ? { "Cache-Control": cacheControl } : {}) };
+  const signed = await client().sign(`${endpoint(bucket)}/${encodeKey(key)}`, { method: "PUT", body, headers });
+  const response = await fetch(signed.url, { method: "PUT", headers: signed.headers, body });
+  if (!response.ok) throw new Error(response.status === 403 ? "Khóa R2 chưa có quyền ghi (cần Object Read & Write)." : `R2 trả lỗi HTTP ${response.status} khi lưu ảnh.`);
+  return contentLinkFor("public", key);
+}
+
+// Removes one object from the public bucket; a missing object is not an error.
+export async function deletePublicObject(key: string) {
+  const bucket = r2Buckets().public;
+  if (!bucket || !r2ApiReady()) return;
+  const signed = await client().sign(`${endpoint(bucket)}/${encodeKey(key)}`, { method: "DELETE" });
+  const response = await fetch(signed.url, { method: "DELETE", headers: signed.headers });
+  if (!response.ok && response.status !== 404) throw new Error(`R2 trả lỗi HTTP ${response.status} khi xóa ảnh.`);
+}

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { COVER_ASPECT_CLASS } from "@/lib/cover";
+import { COVER_ASPECT_CLASS, coverImageProps } from "@/lib/cover";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookOpen, Bookmark, ChevronLeft, ChevronRight, ExternalLink, Lock } from "lucide-react";
@@ -54,7 +54,7 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/tr
       <section className="grid gap-8 lg:grid-cols-[290px_1fr]">
         <div className={`relative ${COVER_ASPECT_CLASS} w-full max-w-[290px] overflow-hidden rounded-xl bg-gradient-to-br from-[#102D54] via-[#154B95] to-[#2D74A8] shadow-md`}>
           {/* eslint-disable-next-line @next/next/no-img-element -- covers come from arbitrary admin-provided hosts */}
-          {coverUrl ? <img src={coverUrl} alt={`Ảnh bìa ${story.title}`} className="size-full object-cover" /> : <span className="absolute inset-x-4 bottom-4 text-lg font-semibold text-white drop-shadow-md">{story.title}</span>}
+          {coverUrl ? <img {...coverImageProps(coverUrl, "290px")} alt={`Ảnh bìa ${story.title}`} className="size-full object-cover" fetchPriority="high" /> : <span className="absolute inset-x-4 bottom-4 text-lg font-semibold text-white drop-shadow-md">{story.title}</span>}
         </div>
         <div className="min-w-0 space-y-5">
           <h1 className="line-clamp-2 text-3xl font-bold tracking-tight text-primary sm:text-4xl" title={story.title}>{story.title}</h1>

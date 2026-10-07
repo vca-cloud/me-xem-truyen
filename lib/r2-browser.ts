@@ -79,16 +79,19 @@ export function chapterNumberFromFile(fileName: string) {
   return any ? Number(any[1]) : null;
 }
 
-const titleCase = (value: string) => value.toLocaleLowerCase("vi").replace(/(^|[\s(\-–])(\p{L})/gu, (_, space: string, letter: string) => space + letter.toLocaleUpperCase("vi"));
+// Sentence case: only the first letter is upper-case ("BÁN VÀO ĐÔNG CUNG" → "Bán vào đông cung").
+const sentenceCase = (value: string) => {
+  const lower = value.toLocaleLowerCase("vi");
+  return lower.replace(/\p{L}/u, (letter) => letter.toLocaleUpperCase("vi"));
+};
 
 // macOS uploads keep file names decomposed (NFD: "a" + combining mark). Object keys must stay as stored,
 // but anything shown or saved as text (story title, chapter title, file name) is normalized to NFC.
-// Chapter title from the file's first line ("CHƯƠNG 1: BÁN VÀO ĐÔNG CUNG" → "Bán Vào Đông Cung").
+// Chapter title from the file's first line, in sentence case ("CHƯƠNG 1: BÁN VÀO ĐÔNG CUNG" → "Bán vào đông cung").
 export function chapterTitleFromText(text: string, chapterNumber: number) {
   const first = text.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? "";
   const match = first.match(/^(?:chương|chuong|tập|tap|chapter)\s*0*\d+\s*[:.\-–]\s*(.+)$/iu);
   const raw = (match ? match[1] : "").trim().slice(0, 200);
   if (!raw) return `Chương ${chapterNumber}`;
-  const title = raw.normalize("NFC");
-  return title === title.toLocaleUpperCase("vi") ? titleCase(title) : title;
+  return sentenceCase(raw.normalize("NFC"));
 }

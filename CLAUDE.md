@@ -5,9 +5,10 @@
 “Mê Xem Truyện” là nền tảng đọc truyện chữ trực tuyến xây dựng bằng Next.js App Router, kiếm tiền bằng **Google AdSense** và **Shopee Affiliate**. Ứng dụng phục vụ hai nhóm người dùng:
 
 - Người đọc: tìm kiếm truyện, lọc thể loại, xem thông tin truyện, đọc chương, đăng nhập/đăng ký.
-- Quản trị viên: theo dõi doanh thu và lưu lượng, quản lý truyện, link affiliate, thành viên, quản trị viên, thể loại và cài đặt.
+- Tác giả (thành viên được admin duyệt): đăng truyện, viết chương, khóa chương bằng Xu, nhận phần trăm doanh thu.
+- Quản trị viên: theo dõi doanh thu và lưu lượng, quản lý truyện, kiểm duyệt nội dung, tác giả, link affiliate, thành viên, quản trị viên, thể loại và cài đặt.
 
-Supabase là Auth/database; Cloudflare R2 lưu ảnh bìa và file nội dung chương `.txt`; ứng dụng deploy trên Vercel. Một số màn hình vẫn dùng dữ liệu mock (xem mục 12).
+Supabase là Auth/database; Cloudflare R2 lưu ảnh bìa và file nội dung chương `.txt`; ứng dụng deploy trên Vercel. Toàn bộ màn hình dùng dữ liệu thật (không còn mock).
 
 ## 2. Công nghệ và cấu trúc
 
@@ -27,7 +28,7 @@ Supabase là Auth/database; Cloudflare R2 lưu ảnh bìa và file nội dung ch
 app/                  # Routes, layouts, route handlers
 components/           # UI dùng chung, admin shell, ads, tracking
 components/ui/        # Primitive shadcn/ui
-lib/                  # Supabase clients, auth, analytics, ads, import, mock data
+lib/                  # Supabase clients, auth, analytics, ads, import, moderation, authors, R2, covers
 supabase/migrations/  # SQL schema/RLS migrations (chạy theo thứ tự số)
 public/               # Static assets
 ```
@@ -41,8 +42,9 @@ public/               # Static assets
 - `/truyen/[slug]/chuong/[chapterNumber]` — đọc chương; nội dung lấy từ `text_url` (file `.txt` public trên R2).
 - `/dang-nhap`, `/dang-ky` — email/password hoặc Google (Turnstile nếu có `NEXT_PUBLIC_TURNSTILE_SITE_KEY`); `?next=` qua `safeInternalPath`.
 - `/tim-kiem` — tìm nâng cao: `q` (tên/tác giả/thể loại, không phân biệt dấu), `the_loai` (slug, phân tách dấu phẩy), `che_do=mot-trong` (mặc định có tất cả), `trang_thai`, `sap_xep` (`cap-nhat`/`moi-dang`/`nhieu-chuong`/`ten`), `trang`; noindex. Logic ở `lib/search.ts`. Header dùng chung `components/site-header.tsx` (menu thể loại lấy từ bảng `genres` qua `getGenreCatalog()`, ô tìm kiếm → `/tim-kiem`) cho trang chủ, trang truyện, trang tìm kiếm.
+- `/tac-gia` — khu vực tác giả (đăng ký làm tác giả, truyện của tôi, rút Xu), `/tac-gia/truyen/[id]` — viết/sửa chương; `/dieu-khoan-tac-gia` — điều khoản tác giả.
 - `/tai-khoan` — ví Xu thành viên. `/gioi-thieu`, `/dieu-khoan`, `/chinh-sach-bao-mat`, `/lien-he` — trang thông tin (thông tin công ty lấy từ `lib/site.ts` / `NEXT_PUBLIC_COMPANY_*`).
-- `/sitemap.xml` (truyện + chương miễn phí), `/robots.txt` (chặn admin/api/go/tai-khoan).
+- `/sitemap.xml` (truyện + chương miễn phí), `/robots.txt` (chặn admin/api/go/tai-khoan/tac-gia).
 - `/auth/callback` — OAuth callback, đổi code thành session.
 - `/go/[id]` — redirect affiliate: ghi click rồi chuyển 302 tới link Shopee (`?s=<slug>&c=<chương>`).
 - `/ads.txt` — sinh từ `NEXT_PUBLIC_ADSENSE_CLIENT`; trả 404 khi AdSense chưa bật.
@@ -53,27 +55,43 @@ public/               # Static assets
 - `/admin/dang-nhap` — đăng nhập quản trị; `/admin/xac-thuc` — nhập mã 2 lớp (cả hai ngoài protected route group).
 - `/admin` — dashboard doanh thu & theo dõi.
 - `/admin/truyen` — đăng truyện, thêm chương, sửa thông tin (tên truyện cố định để giữ link), xóa, import CSV; dữ liệu thật.
+- `/admin/kiem-duyet` — hàng chờ duyệt chương (bị gắn cờ hoặc tác giả gửi), duyệt/đăng/từ chối, bật/tắt quảng cáo từng chương, sửa từ điển che từ (mục 8d).
+- `/admin/tac-gia` — duyệt hồ sơ tác giả, đặt % doanh thu, xử lý yêu cầu rút Xu (mục 8e).
 - `/admin/affiliate` — quản lý link Shopee, nhập báo cáo đơn hàng Shopee và AdSense.
 - `/admin/thanh-vien` (thành viên, cộng/trừ Xu), `/admin/quan-tri-vien` (cấp/sửa/gỡ quyền, đổi mật khẩu), `/admin/the-loai` (thêm/đổi tên/xóa), `/admin/cai-dat` (bật/tắt xác thực 2 lớp, xem thông tin website). Tất cả dùng dữ liệu thật.
 
-API admin: `/api/admin/stories` (POST đăng truyện), `/api/admin/stories/[id]` (PATCH sửa, DELETE xóa), `/api/admin/stories/[id]/chapters` (POST thêm chương), `/api/admin/stories/import`, `/api/admin/affiliate-links[/id]`, `/api/admin/revenue/import`, `/api/admin/analytics/export`, `/api/admin/administrators/[id]/password`. Trang admin gọi `requireAdmin()` (redirect); API admin gọi `guardAdminApi(roleAccess.X)` trả 401/403. Quyền theo vai trò (`lib/auth.ts` → `roleAccess`): `view`/`content` cho admin, editor, moderator; `destructive` (xóa truyện/chương/thể loại), `money` (affiliate, doanh thu, Xu), `admins` chỉ cho `admin`. Thêm API mới: `/api/admin/stories/[id]/chapters` (GET), `/api/admin/chapters/[id]` (PATCH/DELETE — chương đã có người mua không xóa được), `/api/admin/administrators` (POST) + `[id]` (DELETE), `/api/admin/genres` (POST) + `[id]` (PATCH/DELETE).
+API admin: `/api/admin/stories` (POST đăng truyện), `/api/admin/stories/[id]` (PATCH sửa, DELETE xóa), `/api/admin/stories/[id]/chapters` (POST thêm chương), `/api/admin/stories/import`, `/api/admin/affiliate-links[/id]`, `/api/admin/revenue/import`, `/api/admin/analytics/export`, `/api/admin/administrators/[id]/password`. Trang admin gọi `requireAdmin()` (redirect); API admin gọi `guardAdminApi(roleAccess.X)` trả 401/403. Quyền theo vai trò (`lib/auth.ts` → `roleAccess`): `view`/`content` cho admin, editor, moderator; `destructive` (xóa truyện/chương/thể loại), `money` (affiliate, doanh thu, Xu), `admins` chỉ cho `admin`. Thêm API mới: `/api/admin/stories/[id]/chapters` (GET), `/api/admin/chapters/[id]` (PATCH/DELETE — chương đã có người mua không xóa được), `/api/admin/administrators` (POST) + `[id]` (DELETE), `/api/admin/genres` (POST) + `[id]` (PATCH/DELETE), `/api/admin/covers` (POST ảnh bìa), `/api/admin/r2/folders|preview`, `/api/admin/stories/[id]/moderation` (quét lại), `/api/admin/moderation-terms[/id]`, `/api/admin/authors/[id]`, `/api/admin/payouts/[id]`.
+
+API tác giả (`guardAuthorApi()`, ghi bằng service role sau khi kiểm session + quyền sở hữu): `/api/author/apply`, `profile`, `stories[/id]`, `stories/[id]/chapters`, `chapters/[id]` (GET/PATCH/DELETE), `covers`, `payouts`.
 
 ## 4. Giao diện đã triển khai
 
 ### Trang chủ
 
 - Server component `app/page.tsx` tải truyện, client component `components/home-page.tsx` hiển thị.
-- Sticky header với logo, tìm kiếm tên truyện/tác giả, đăng nhập/đăng ký, chuyển sáng/tối.
-- Section truyện mới đăng (cover 4:5, nhãn NEW trong 7 ngày, FULL khi hoàn thành), mới cập nhật (bảng), truyện hoàn thành; ẩn section trống.
-- Danh sách truyện có lọc thể loại, phân trang 10 truyện/trang; badge thể loại ôm sát nội dung, truncate text.
+- Header dùng chung (`components/site-header.tsx`): logo, menu Thể loại (từ admin), ô tìm kiếm → `/tim-kiem`, đăng nhập/đăng ký hoặc số Xu, nút sáng/tối. Điện thoại: dòng 1 logo + sáng/tối, dòng 2 menu + tìm kiếm + tài khoản.
+- Section truyện mới đăng (ô ảnh bìa 4:5, nhãn NEW trong 7 ngày, FULL khi hoàn thành), mới cập nhật (bảng), truyện hoàn thành; ẩn section trống.
+- Danh sách truyện lọc theo thể loại trong admin, phân trang 10 truyện/trang; cột Tình trạng; badge thể loại một dòng, truncate text.
 - Cover/tên truyện liên kết tới `/truyen/[slug]`.
 
 ### Trang chi tiết truyện
 
 - Breadcrumb dạng `Trang chủ › Tên truyện`.
-- Ảnh bìa: khung 4:5 ở mọi nơi (`COVER_ASPECT_CLASS`, `lib/cover.ts`), `object-cover`. Tải ảnh trong form truyện (admin + tác giả) bằng `components/cover-uploader.tsx`: cắt 4:5 bằng `react-easy-crop`, trình duyệt xuất 600×750 + 300×375 WebP (JPEG nếu trình duyệt không mã hóa được WebP), gửi `POST /api/admin/covers` (vai trò `content`) hoặc `/api/author/covers`. Server (`lib/cover-storage.ts`) đọc header file kiểm định dạng/kích thước/dung lượng, lưu R2 public `covers/<uuid>.webp` + `-sm`, `Cache-Control` 1 năm. Hiển thị qua `coverImageProps()` (srcset, width/height; trang chủ lazy, trang truyện `fetchPriority=high`). Thay/bỏ ảnh hoặc xóa truyện → `deleteCoverIfUnused()` xóa file trên R2. Vẫn nhận link dán tay (host khác thì không có srcset).
 - Ảnh bìa (`cover_url`), tác giả, thể loại, trạng thái, tổng chương, ngày cập nhật. Không hiển thị rating/lượt đọc/nhãn HOT khi chưa có dữ liệu thật.
-- Nút đọc từ đầu, đọc mới nhất, Mê Nghe Truyện, tủ sách (đang tắt — chưa làm); mô tả và danh sách chương.
+- Nút đọc từ đầu, đọc mới nhất, Mê Nghe Truyện, tủ sách (đang tắt — chưa làm); mô tả và danh sách chương (2 cột, mỗi cột tối đa 10 chương, 20 chương/trang, `?trang=`).
+
+### Trang đọc chương
+
+- Header gọn (logo 30px trên điện thoại, tài khoản, nút sáng/tối), điều hướng chương trước / chọn chương (Combobox) / chương sau ở trên và dưới.
+- Nội dung 24px (1.5× cỡ thường), dòng cách 1.8; tên chương 28px/36px. Từ nhạy cảm được che (`maskForReaders`). Dòng “Chương N: …” lặp ở đầu file bị bỏ (`stripChapterHeading`).
+
+### Ảnh bìa
+
+- Khung 4:5 ở mọi nơi (`COVER_ASPECT_CLASS`, `lib/cover.ts`), `object-cover` (không méo; sai tỷ lệ thì cắt). Một ảnh dùng chung điện thoại và máy tính.
+- Tải ảnh trong form truyện (admin + tác giả) bằng `components/cover-uploader.tsx`: cắt 4:5 bằng `react-easy-crop`, trình duyệt xuất 600×750 + 300×375 WebP (JPEG nếu trình duyệt không mã hóa được WebP), gửi `POST /api/admin/covers` (vai trò `content`) hoặc `/api/author/covers`. Vẫn nhận link dán tay (host khác thì không có srcset).
+- Server (`lib/cover-storage.ts`) đọc header file kiểm định dạng (chỉ JPEG/WebP), kích thước đúng, dung lượng (≤ 400 KB / 200 KB); lưu R2 public `covers/<uuid>.webp` + `covers/<uuid>-sm.webp`, `Cache-Control: public, max-age=31536000, immutable`.
+- Hiển thị qua `coverImageProps()` (srcset 300w/600w, width/height chống giật trang; trang chủ `loading=lazy`, trang truyện `fetchPriority=high`).
+- Thay/bỏ ảnh hoặc xóa truyện → `deleteCoverIfUnused()` xóa cả 2 file trên R2 nếu không truyện nào khác dùng. Ảnh tải lên rồi hủy không lưu sẽ còn lại trên R2 (chưa có dọn tự động).
 
 ### Admin dashboard (`/admin`)
 
@@ -115,7 +133,11 @@ Chạy theo thứ tự trong Supabase SQL Editor:
 4. `0004_coins.sql` — Xu, khóa chương, ẩn `chapters.text_url` (xem mục 8b).
 5. `0005_admin_tools.sql` — `stories.ads_disabled`, `admin_list_chapters()`, `admin_set_admin()`/`admin_remove_admin()` (luôn giữ ≥ 1 admin), giới hạn 300 lượt xem/giờ/IP (`view_events.ip_hash`, `track_view` 6 tham số), xác thực 2 lớp trong DB (`admin_mfa_ok()`, `is_admin()` và `is_full_admin()` yêu cầu `aal2` nếu admin đã đăng ký TOTP), gỡ policy cho admin tự sửa `admin_profiles`.
 
-Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
+6. `0006_chapter_counts.sql` — `story_chapter_counts()` (đếm chương công khai, vì `text_url` đã bị ẩn).
+7. `0007_moderation.sql` — `moderation_terms` (309 từ khởi đầu; mức 1 = chỉ che, 2 = tắt QC + duyệt tay, 3 = tắt QC + duyệt, có thể 18+), cột chương `ads_enabled`, `moderation_status` (unscanned/clean/pending/approved), `moderation_score`, `moderation_hits`, `is_mature`; `admin_moderation_summary()`, `admin_moderation_queue()`.
+8. `0008_authors.sql` — `author_profiles`, `stories.owner_id`, `chapters.publish_status` (draft/submitted/published/rejected) + `review_note`/`submitted_at`; RLS chỉ hiện chương đã đăng (truyện của tác giả chỉ hiện khi có chương đã đăng); `author_earnings`, `author_payouts` (một yêu cầu/kỳ), `unlock_chapter()` ghi phần tác giả, `author_balance()`, `admin_list_authors()`.
+
+Đã chạy đủ `0001`–`0008` trên project hiện tại. Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
 
 ## 7. Import truyện hàng loạt
 
@@ -174,7 +196,7 @@ Migration `0004_coins.sql`. 1 Xu = 100đ; gói nạp và nhãn trong `lib/coins.
 Nút **Nhập từ Cloudflare** (`/admin/truyen`, `components/r2-import-dialog.tsx`): chọn thư mục trong bucket public (`R2_PUBLIC_BUCKET`) hoặc riêng tư (`R2_BUCKET`), liệt kê `.txt` qua S3 ListObjectsV2 (`lib/r2-browser.ts`, `aws4fetch`), sắp theo số trong tên file (`chapterNumberFromFile`), đọc tên chương từ 600 byte đầu (`chapterTitleFromText`). Thư mục trùng slug truyện đã có → chỉ thêm chương chưa có; ngược lại tạo truyện mới (bucket riêng tư mặc định khóa từ chương 1). Link lưu: URL public (mã hóa từng đoạn) hoặc `r2://key`.
 
 - API: `GET /api/admin/r2/folders?source=public|private&prefix=`, `GET /api/admin/r2/preview?source=&prefix=<thư mục/>` (vai trò `content`).
-- Cần `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (token R2 **Object Read only**); r2.dev public không liệt kê được thư mục. Thiếu khóa → API trả 503 và hộp hiện hướng dẫn.
+- Cần `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (token R2 **Object Read & Write** — ghi cần cho chương tác giả và ảnh bìa); r2.dev public không liệt kê được thư mục. Thiếu khóa → API trả 503 và hộp hiện hướng dẫn.
 
 ## 8c. Quy tắc bảo mật
 
@@ -184,19 +206,32 @@ Nút **Nhập từ Cloudflare** (`/admin/truyen`, `components/r2-import-dialog.t
 - Truyện `ads_disabled` không tải AdSense và không hiện `AdSlot`.
 
 - Redirect sau đăng nhập dùng `safeInternalPath()` (`lib/safe-redirect.ts`); không tự kiểm `startsWith("/")` vì `/\\evil.com` thành domain ngoài.
+- File tải lên chỉ nhận qua endpoint server có kiểm quyền; kiểm nội dung file thật (header), không tin MIME/đuôi file; không bao giờ nhận SVG/HTML; tên file ngẫu nhiên.
 - Mọi URL do admin nhập (ảnh bìa, audio, nội dung, affiliate) phải qua `validTextUrl()` (chỉ http/https) cả khi lưu lẫn khi render.
 - Header bảo mật đặt trong `next.config.ts` (nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy, HSTS). CSP chưa bật — cần thử cùng AdSense trước.
 - Số dư, giá và quyền truy cập luôn do database quyết định; API không nhận giá/số dư từ client.
 - `track_view` chỉ ghi lượt xem cho truyện có thật.
 
+## 8d. Kiểm duyệt nội dung
+
+- Lõi: `lib/moderation-core.ts` (`compileTerms`, `scanText` — so khớp theo ranh giới từ, chịu được dấu chấm/cách xen giữa như `c.h.ế.t`, chuẩn hóa NFC; `moderationDecision`, `maskText`, `MATURE_THRESHOLD = 2`), `lib/moderation.ts` (`getModerationTerms` cache 60s, `maskForReaders`, `moderateChapter(s)`), từ điển sửa ở `/admin/kiem-duyet`.
+- Trang public che mọi từ trong từ điển (tên truyện, tên chương, nội dung). Chương quét lúc đăng: sạch → quảng cáo bật; dính từ mức ≥ 2 → quảng cáo tắt, chờ duyệt tay. Nhãn 18+ chỉ admin thấy.
+- Tắt quảng cáo theo chương chỉ ẩn ô quảng cáo, nội dung vẫn hiển thị.
+
+## 8e. Tác giả thành viên
+
+- Quy tắc ở `lib/author-rules.ts`: chia doanh thu mặc định `DEFAULT_REVENUE_SHARE = 70`% (admin chỉnh từng tác giả), tối thiểu `MIN_FREE_CHAPTERS = 5` chương miễn phí, giá tối đa `MAX_LOCK_PRICE = 20` Xu/chương, tin cậy sau `TRUST_THRESHOLD = 10` chương được đăng (chương sạch tự đăng; chưa tin cậy thì chờ admin duyệt), rút Xu mỗi tháng vào ngày `PAYOUT_DAY = 20`, tối thiểu `MIN_PAYOUT_COINS = 500`.
+- Tác giả chỉ nhận Xu. Sửa chương đã đăng → gửi duyệt lại. Nội dung tác giả viết được lưu thành `.txt` trên R2 public với tên khó đoán (`uploadChapterText`).
+- Helpers: `lib/authors.ts` (`getAuthorContext`, `guardAuthorApi`, `ownedStory`, `isTrustedAuthor`), `lib/author-stories.ts` (`parseAuthorStory`).
+
 ## 9. Thiết lập Supabase
 
-Project hiện dùng: `aijhhoopjtxjtoyvugsz` (gói Free, tự tạm dừng sau ~1 tuần không hoạt động — vào dashboard bấm Restore nếu app báo `fetch failed`). Đã chạy `0001`–`0003` và có admin `admin@admin.com` (06/10/2026; mật khẩu tạm, cần đổi trước production).
+Project hiện dùng: `aijhhoopjtxjtoyvugsz` (gói Free, tự tạm dừng sau ~1 tuần không hoạt động — vào dashboard bấm Restore nếu app báo `fetch failed`). Đã chạy `0001`–`0008` và có admin `admin@admin.com` (06/10/2026; mật khẩu tạm, cần đổi trước production).
 
 Thiết lập project mới:
 
 1. Lấy Project URL và Publishable key, điền vào `.env.local` (và Vercel).
-2. Chạy lần lượt `0001`, `0002`, `0003` trong SQL Editor, rồi `notify pgrst, 'reload schema';`.
+2. Chạy lần lượt `0001` → `0008` trong SQL Editor, rồi `notify pgrst, 'reload schema';`.
 3. Tạo admin trực tiếp (không qua đăng ký) — thay email/mật khẩu:
 
 ```sql
@@ -236,17 +271,31 @@ end $$;
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
-SUPABASE_SERVICE_ROLE_KEY=          # server-only, cho đổi mật khẩu admin
+SUPABASE_SERVICE_ROLE_KEY=          # server-only: đổi mật khẩu admin, API tác giả, dọn ảnh bìa
 
 # Dev-only
 ADMIN_AUTH_BYPASS=false
 
+# Website / doanh nghiệp (hiện ở trang thông tin, chân trang)
+NEXT_PUBLIC_SITE_URL=
+NEXT_PUBLIC_COMPANY_NAME=
+NEXT_PUBLIC_COMPANY_TAX_CODE=
+NEXT_PUBLIC_COMPANY_ADDRESS=
+NEXT_PUBLIC_CONTACT_EMAIL=
+NEXT_PUBLIC_CONTACT_PHONE=
+
+# Bảo mật
+VIEW_IP_SALT=                       # chuỗi ngẫu nhiên để băm IP lượt xem
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=     # captcha đăng nhập/đăng ký (bật cùng Supabase Attack Protection)
+
 # Cloudflare R2 (server-only trừ public URL)
 R2_ACCOUNT_ID=
-R2_ACCESS_KEY_ID=
+R2_ACCESS_KEY_ID=                   # token Object Read & Write
 R2_SECRET_ACCESS_KEY=
-R2_BUCKET=
-R2_PUBLIC_URL=https://pub-538f59c74bd24ae1b59dae832ad0c09b.r2.dev
+R2_BUCKET=                          # bucket riêng tư (chương trả phí, r2://)
+R2_PUBLIC_BUCKET=me-xem-truyen      # bucket public (chương, ảnh bìa covers/)
+R2_PUBLIC_URL=https://pub-538f59c74bd24ae1b59dae832ad0c09b.r2.dev   # đổi sang tên miền riêng trước production
+CHAPTER_TEXT_HOSTS=                 # host khác được phép làm link chương, cách nhau dấu phẩy
 
 # AdSense (public, gắn vào bundle lúc build — đổi phải redeploy)
 NEXT_PUBLIC_ADS_ENABLED=false
@@ -260,7 +309,7 @@ NEXT_PUBLIC_ADSENSE_SLOT_CHAPTER_MID=
 NEXT_PUBLIC_ADSENSE_SLOT_CHAPTER_END=
 ```
 
-Publishable key dùng được ở browser nhưng dữ liệu phải được RLS bảo vệ. Không đặt service role key hay R2 secret vào Client Component, `NEXT_PUBLIC_*`, Git hoặc chat. R2 public URL chỉ đọc; upload tương lai dùng presigned URL/endpoint server, giới hạn MIME, kích thước, extension, path. Runtime giữ Node.js (Vercel), không chuyển sang Workers.
+Publishable key dùng được ở browser nhưng dữ liệu phải được RLS bảo vệ. Không đặt service role key hay R2 secret vào Client Component, `NEXT_PUBLIC_*`, Git hoặc chat. Upload lên R2 chỉ qua endpoint server (kiểm quyền, nội dung file, kích thước, tên file ngẫu nhiên). `r2.dev` chỉ dành cho phát triển (giới hạn tốc độ, không cache CDN): trước production gắn tên miền riêng cho bucket (R2 → Settings → Custom Domains), đổi `R2_PUBLIC_URL`, rồi chạy SQL `replace()` đổi host cũ trong `stories.cover_url` và `chapters.text_url`. Runtime giữ Node.js (Vercel), không chuyển sang Workers.
 
 ## 11. Quy tắc phát triển
 
@@ -287,25 +336,25 @@ Smoke test (`npm run dev`):
 - `/admin` chưa đăng nhập chuyển tới `/admin/dang-nhap` (khi không bật bypass); user thường không vào được; admin hợp lệ vào được.
 - `POST /api/track/view` trả 204 với slug hợp lệ, 400 với slug sai; `/go/<id-không-tồn-tại>` redirect về `/`.
 - Mặc định không trang nào có `adsbygoogle.js`; `NEXT_PUBLIC_ADS_PREVIEW=true` hiện khung giữ chỗ ở trang chủ/truyện/chương, không có ở đăng nhập/admin.
+- `POST /api/admin/covers` và `/api/author/covers` chưa đăng nhập trả 401; file SVG/sai kích thước trả 400; bỏ ảnh bìa thì file trên R2 trả 404.
+- `/tim-kiem?the_loai=a,b` (có tất cả) và `&che_do=mot-trong` (ít nhất một) cho kết quả đúng.
 - Email login/register có loading và lỗi; Google OAuth chỉ redirect tới path nội bộ; R2 fail-closed khi thiếu credentials.
 
 ## 13. Trạng thái hiện tại
 
 Đã hoàn thành:
 
-- Giao diện public và admin, responsive admin shell; trang chủ/truyện/chương đọc dữ liệu thật từ Supabase.
-- Supabase clients, session proxy, Email/Google Auth, guard admin theo role, bypass đăng nhập cho dev.
-- Đăng truyện, thêm chương, sửa thông tin, xóa truyện, import CSV nhiều truyện nhiều chương, lưu thể loại.
-- Nền tảng tracking: lượt xem, click affiliate, đơn Shopee, báo cáo AdSense; dashboard doanh thu và xuất CSV.
-- Quản lý link affiliate; component AdSense dựng sẵn (đang tắt), `ads.txt`.
+- Giao diện public (sáng/tối, Raleway, bảng màu thương hiệu, header dùng chung, tìm kiếm nâng cao nhiều thể loại) và admin; dữ liệu thật từ Supabase.
+- Supabase Auth (Email/Google), guard admin theo vai trò, xác thực 2 lớp, Turnstile (chờ key), bypass đăng nhập cho dev.
+- Đăng/sửa/xóa truyện, thêm chương, import CSV, nhập từ thư mục Cloudflare R2, thể loại; tải và cắt ảnh bìa lên R2.
+- Xu và khóa chương; kiểm duyệt nội dung (che từ, quét khi đăng, quảng cáo theo chương, 18+ cho admin); tác giả thành viên (duyệt, viết chương, chia doanh thu, rút Xu ngày 20).
+- Tracking lượt xem/click affiliate, nhập báo cáo Shopee/AdSense, dashboard doanh thu, xuất CSV; component AdSense dựng sẵn (đang tắt), `ads.txt`; trang giới thiệu/điều khoản/bảo mật/liên hệ.
 
 Chưa hoàn thành:
 
-- Đổi mật khẩu admin tạm; thêm `SUPABASE_SERVICE_ROLE_KEY` nếu cần đổi mật khẩu từ trang admin.
-- Chưa có tủ sách, nạp Xu tự động, gom lượt xem theo ngày, CSP.
-- GitHub Actions `supabase-keepalive.yml`/`supabase-backup.yml` cần đẩy repo lên GitHub và thêm secrets.
-- Cờ truyện nhạy cảm để tắt quảng cáo; trang giới thiệu/chính sách/liên hệ (cần cho duyệt AdSense).
+- Đổi mật khẩu admin tạm `admin@admin.com`.
+- Tên miền: gắn tên miền riêng cho R2 (thay `r2.dev`) và cho website; deploy Vercel kèm biến môi trường (Supabase, service role, R2, `VIEW_IP_SALT`, thông tin công ty).
+- Đẩy repo lên GitHub (chỉ khi chủ dự án đồng ý) để chạy `.github/workflows/supabase-keepalive.yml` / `supabase-backup.yml` (cần secrets).
+- Nạp Xu tự động (VietQR/SePay + MoMo doanh nghiệp), bucket R2 riêng tư cho chương trả phí, tủ sách, gom lượt xem theo ngày, CSP, dọn ảnh bìa mồ côi.
 - Đồng bộ tự động AdSense Management API và Shopee Affiliate API (hiện nhập CSV).
 - Gắn link Shopee và bật AdSense trên trang public (khi chủ dự án yêu cầu).
-- R2 presigned upload; biến môi trường và deploy trên Vercel.
-- README vẫn là mặc định của `create-next-app`. Repo chưa có commit nào.

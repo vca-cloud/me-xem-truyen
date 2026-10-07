@@ -14,6 +14,7 @@ export function AdminGenresPage({ genres, loadError }: { genres: AdminGenreRow[]
   const [query, setQuery] = useState("");
   const [newName, setNewName] = useState("");
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const [adding, setAdding] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, setPending] = useState(false);
   const filtered = useMemo(() => genres.filter((genre) => `${genre.name} ${genre.slug}`.toLowerCase().includes(query.toLowerCase())), [genres, query]);
@@ -36,7 +37,8 @@ export function AdminGenresPage({ genres, loadError }: { genres: AdminGenreRow[]
 
   async function create(event: React.FormEvent) {
     event.preventDefault();
-    if (await send("/api/admin/genres", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newName }) }, `Đã thêm thể loại "${newName.trim()}".`)) setNewName("");
+    if (!newName.trim()) return setMessage({ ok: false, text: "Vui lòng nhập tên thể loại." });
+    if (await send("/api/admin/genres", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newName }) }, `Đã thêm thể loại "${newName.trim()}".`)) { setNewName(""); setAdding(false); }
   }
 
   async function rename(event: React.FormEvent) {
@@ -51,7 +53,7 @@ export function AdminGenresPage({ genres, loadError }: { genres: AdminGenreRow[]
   }
 
   return <>
-    <PageHeading title="Thể loại" description="Danh mục thể loại để chọn khi đăng/sửa truyện. Import CSV cũng tự thêm thể loại mới." action={<form onSubmit={create} className="flex gap-2"><Input required maxLength={60} value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Tên thể loại mới" aria-label="Tên thể loại mới" className="w-56" /><Button type="submit" disabled={pending}><Plus className="size-4" />{pending ? "Đang thêm..." : "Thêm thể loại"}</Button></form>} />
+    <PageHeading title="Thể loại" description="Danh mục thể loại để chọn khi đăng/sửa truyện. Import CSV cũng tự thêm thể loại mới." action={<Button onClick={() => { setMessage(null); setNewName(""); setAdding(true); }}><Plus className="size-4" />Thêm thể loại</Button>} />
     {loadError && <p role="alert" className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">Không tải được thể loại: {loadError}</p>}
     {message && <p role="status" className={`mb-4 rounded-md px-3 py-2 text-sm ${message.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{message.text}</p>}
     <TableCard title={`Danh sách thể loại (${genres.length})`}>
@@ -66,5 +68,11 @@ export function AdminGenresPage({ genres, loadError }: { genres: AdminGenreRow[]
             <Button variant="ghost" size="icon-sm" className="text-rose-600" aria-label={`Xóa ${genre.name}`} disabled={pending} onClick={() => remove(genre)}><Trash2 className="size-4" /></Button></>}
       </div>)}</div> : <p className="px-5 py-10 text-center text-sm text-slate-500">{genres.length ? "Không có thể loại phù hợp." : "Chưa có thể loại nào."}</p>}
     </TableCard>
+    {adding && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-label="Thêm thể loại"><form onSubmit={create} className="w-full max-w-sm space-y-4 rounded-xl bg-white p-6 shadow-xl">
+      <div className="flex items-start justify-between"><h2 className="text-lg font-semibold">Thêm thể loại</h2><Button type="button" variant="ghost" size="icon-sm" aria-label="Đóng" onClick={() => setAdding(false)}><X className="size-4" /></Button></div>
+      <label className="block text-sm font-medium">Tên thể loại<Input autoFocus maxLength={60} value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Ví dụ: Cổ Đại" aria-label="Tên thể loại mới" className="mt-1" /></label>
+      {message && !message.ok && <p role="alert" className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{message.text}</p>}
+      <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setAdding(false)}>Hủy</Button><Button type="submit" disabled={pending}>{pending ? "Đang thêm..." : "Thêm"}</Button></div>
+    </form></div>}
   </>;
 }

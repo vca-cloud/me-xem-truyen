@@ -144,7 +144,9 @@ Chạy theo thứ tự trong Supabase SQL Editor:
 
 10. `0010_view_window.sql` — `track_view` tính lại lượt xem cùng người/cùng trang sau 15 phút (trước 30); giữ giới hạn 300 lượt/giờ/IP.
 
-Đã chạy `0001`–`0010` trên project hiện tại. Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
+11. `0011_moderation_rescan.sql` — `moderation_state` (chỉ server đọc), trigger cập nhật thời điểm đổi từ điển, index `chapters.moderated_at`.
+
+Đã chạy `0001`–`0010` trên project hiện tại (`0011` chờ chạy). Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
 
 ## 7. Import truyện hàng loạt
 
@@ -242,6 +244,8 @@ Nút **Tải bản thảo** ở `/admin/truyen` (truyện mới hoặc thêm và
 - Lõi: `lib/moderation-core.ts` (`compileTerms`, `scanText` — so khớp theo ranh giới từ, chịu được dấu chấm/cách xen giữa như `c.h.ế.t`, chuẩn hóa NFC; `moderationDecision`, `maskText`, `MATURE_THRESHOLD = 2`), `lib/moderation.ts` (`getModerationTerms` cache 60s, `maskForReaders`, `moderateChapter(s)`), từ điển sửa ở `/admin/kiem-duyet`.
 - Trang public che mọi từ trong từ điển (tên truyện, tên chương, nội dung). Chương quét lúc đăng: sạch → quảng cáo bật; dính từ mức ≥ 2 → quảng cáo tắt, chờ duyệt tay. Nhãn 18+ chỉ admin thấy.
 - Tắt quảng cáo theo chương chỉ ẩn ô quảng cáo, nội dung vẫn hiển thị.
+- Quét lại toàn web (migration `0011`): trigger trên `moderation_terms` ghi `moderation_state.terms_changed_at`; chương có `moderated_at` cũ hơn (hoặc null) là “chưa quét theo từ điển mới”. `lib/moderation-rescan.ts` (`rescanStatus`, `rescanBatch` 25 chương/lần, dùng service role vì cần `text_url`). Quy tắc: chương chưa duyệt → theo kết quả mới; chương `approved` → giữ quyết định, trừ khi xuất hiện từ mức ≥ 2 chưa có lúc duyệt → về `pending`, tắt QC; file không đọc được → chương đã duyệt giữ nguyên. Đóng dấu `moderated_at` ≥ `terms_changed_at` + 1ms để lệch đồng hồ không gây lặp.
+- Giao diện: `components/moderation-rescan-panel.tsx` ở đầu `/admin/kiem-duyet` (số chương cũ, nút Quét lại toàn web, tiến độ, dừng, quét tiếp được); toast sau mỗi lần sửa từ điển có nút quét. API `GET/POST /api/admin/moderation/rescan` (vai trò `content`). Cron hằng đêm 02:00 giờ VN (`vercel.json`, `/api/cron/moderation-rescan`, cần `CRON_SECRET`), chạy tối đa ~45 giây/đêm.
 
 ## 8e. Tác giả thành viên
 
@@ -321,6 +325,9 @@ R2_BUCKET=                          # bucket riêng tư (chương trả phí, r2
 R2_PUBLIC_BUCKET=me-xem-truyen      # bucket public (chương, ảnh bìa covers/)
 R2_PUBLIC_URL=https://pub-538f59c74bd24ae1b59dae832ad0c09b.r2.dev   # đổi sang tên miền riêng trước production
 CHAPTER_TEXT_HOSTS=                 # host khác được phép làm link chương, cách nhau dấu phẩy
+
+# Vercel Cron
+CRON_SECRET=                        # chuỗi ngẫu nhiên, Vercel gửi kèm khi chạy job hằng đêm
 
 # AdSense (public, gắn vào bundle lúc build — đổi phải redeploy)
 NEXT_PUBLIC_ADS_ENABLED=false

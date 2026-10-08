@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Check, ExternalLink, Pencil, Plus, Search, ShieldOff, Trash2 } from "lucide-react";
 import { PageHeading, TableCard } from "@/components/admin-ui";
+import { ModerationRescanPanel, RESCAN_EVENT } from "@/components/moderation-rescan-panel";
 import { useConfirm } from "@/components/confirm-dialog";
 import { MatureBadge, ModerationStatusBadge, type ModerationHitSummary } from "@/components/moderation-badges";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -74,7 +75,15 @@ function QueueTable({ items, onDecide, onReject, pending }: { items: QueueItem[]
   </div>)}</div>;
 }
 
+// After each dictionary change: masking applies at once; offer the site-wide re-scan (run it once when done editing).
+const rescanPrompt = {
+  description: "Che chữ áp dụng cho trang đọc trong ~1 phút. Sửa xong hết thì quét lại toàn web để cập nhật quảng cáo và hàng chờ duyệt.",
+  action: { label: "Quét lại toàn web", onClick: () => window.dispatchEvent(new Event(RESCAN_EVENT)) },
+  duration: 8000,
+};
+
 export function AdminModerationPage({ queue, dictionary, loadError }: { queue: QueueItem[]; dictionary: DictionaryTerm[]; loadError: string | null }) {
+  const dictionaryVersion = dictionary.map((term) => `${term.id}:${term.term}:${term.severity}:${term.active}`).join("|");
   const router = useRouter();
   const confirm = useConfirm();
   const [pending, setPending] = useState(false);
@@ -104,7 +113,7 @@ export function AdminModerationPage({ queue, dictionary, loadError }: { queue: Q
     const result = await send(draft.id ? `/api/admin/moderation-terms/${draft.id}` : "/api/admin/moderation-terms", json(draft.id ? "PATCH" : "POST", draft));
     setPending(false);
     if (!result.ok) return setDraftError(result.error);
-    toast.success(draft.id ? "Đã cập nhật từ." : `Đã thêm “${draft.term}” vào từ điển.`, { description: "Áp dụng cho trang đọc trong ~1 phút. Bấm “Quét kiểm duyệt lại” ở từng truyện để chấm lại chương cũ." });
+    toast.success(draft.id ? "Đã cập nhật từ." : `Đã thêm “${draft.term}” vào từ điển.`, rescanPrompt);
     setDraft(null);
     router.refresh();
   }
@@ -112,7 +121,7 @@ export function AdminModerationPage({ queue, dictionary, loadError }: { queue: Q
   async function toggleTerm(term: DictionaryTerm, active: boolean) {
     const result = await send(`/api/admin/moderation-terms/${term.id}`, json("PATCH", { ...term, active }));
     if (!result.ok) return toast.error(result.error);
-    toast.success(active ? `Đã bật “${term.term}”.` : `Đã tắt “${term.term}”.`);
+    toast.success(active ? `Đã bật “${term.term}”.` : `Đã tắt “${term.term}”.`, rescanPrompt);
     router.refresh();
   }
 
@@ -120,13 +129,14 @@ export function AdminModerationPage({ queue, dictionary, loadError }: { queue: Q
     if (!await confirm({ title: `Xóa “${term.term}” khỏi từ điển?`, description: "Từ này sẽ không còn bị che và không còn được tính khi quét.", confirmText: "Xóa", destructive: true })) return;
     const result = await send(`/api/admin/moderation-terms/${term.id}`, { method: "DELETE" });
     if (!result.ok) return toast.error(result.error);
-    toast.success(`Đã xóa “${term.term}”.`);
+    toast.success(`Đã xóa “${term.term}”.`, rescanPrompt);
     router.refresh();
   }
 
   return <>
     <PageHeading title="Kiểm duyệt nội dung" description="Chương có từ mức nặng được tắt quảng cáo và chờ duyệt. Từ trong từ điển luôn được che trên trang đọc." />
     {loadError && <Alert variant="destructive" className="mb-4"><AlertTitle>Không tải được dữ liệu kiểm duyệt</AlertTitle><AlertDescription>{loadError}</AlertDescription></Alert>}
+    <ModerationRescanPanel version={dictionaryVersion} />
     <Tabs defaultValue="queue">
       <TabsList className="mb-4"><TabsTrigger value="queue">Chờ duyệt ({waiting.length})</TabsTrigger><TabsTrigger value="handled">Đã xử lý ({handled.length})</TabsTrigger><TabsTrigger value="dictionary">Từ điển ({dictionary.length})</TabsTrigger></TabsList>
       <TabsContent value="queue"><TableCard title="Chương chờ duyệt"><QueueTable items={waiting} onDecide={decide} onReject={(item) => setRejecting({ item, reason: "" })} pending={pending} /></TableCard></TabsContent>

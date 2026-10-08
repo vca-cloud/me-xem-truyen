@@ -1,5 +1,5 @@
 -- Real view counts: per-story totals for the public pages (and the HOT tag), and a view-tracking report for admins.
--- Counts come only from view_events (bots filtered, same visitor/page deduplicated for 30 minutes by track_view).
+-- Counts come only from view_events (bots filtered, same visitor/page deduplicated for 15 minutes since 0010 by track_view).
 
 -- Admin can pin a story as HOT by hand (editorial pick), in addition to the automatic rule in lib/views.ts.
 alter table public.stories add column if not exists hot_pinned boolean not null default false;

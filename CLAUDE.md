@@ -129,7 +129,7 @@ Chạy theo thứ tự trong Supabase SQL Editor:
 2. `0002_stories_chapters.sql` — `stories`, `genres`, `story_genres`, `chapters`; đọc public, admin ghi.
 3. `0003_analytics.sql` — tracking và doanh thu (tiền tính bằng VND):
    - `view_events`, `affiliate_links`, `affiliate_clicks`, `affiliate_conversions`, `adsense_daily` — chỉ admin đọc/ghi qua RLS.
-   - `track_view(...)` — public, security definer; khử trùng cùng visitor/truyện/chương trong 30 phút.
+   - `track_view(...)` — public, security definer; khử trùng cùng visitor/truyện/chương trong 15 phút (0010; ban đầu 30).
    - `track_affiliate_click(...)` — public; trả link đích nếu link đang bật; khử trùng 1 phút.
    - `admin_revenue_dashboard(p_from date, p_to date)` — chỉ admin; trả JSON tổng hợp cho dashboard.
 
@@ -142,7 +142,9 @@ Chạy theo thứ tự trong Supabase SQL Editor:
 
 9. `0009_views.sql` — `stories.hot_pinned`; `story_view_stats()` (public: tổng + 7 ngày + hot_pinned theo truyện, chỉ truyện đang công khai); `admin_view_stats(p_days)` (admin: tổng, người đọc, hôm nay/7/30 ngày, chuỗi theo ngày, theo truyện + sparkline 14 ngày).
 
-Đã chạy `0001`–`0008` trên project hiện tại (`0009` chờ chạy). Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
+10. `0010_view_window.sql` — `track_view` tính lại lượt xem cùng người/cùng trang sau 15 phút (trước 30); giữ giới hạn 300 lượt/giờ/IP.
+
+Đã chạy `0001`–`0009` trên project hiện tại (`0010` chờ chạy). Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
 
 ## 7. Import truyện hàng loạt
 
@@ -182,7 +184,7 @@ Tại `/admin/truyen`: **Tải file mẫu** (`mau-import-truyen-nhieu-chuong.csv
 
 - Lượt xem hiển thị ở mọi nơi là số thật từ `view_events` (`getViewStats()` trong `lib/stories.ts`, cache theo request); thiếu RPC thì trang vẫn chạy, chỉ không có số. Định dạng `formatViews()` (1,2K / 3,4M) trong `lib/views.ts`.
 - Trang công khai chỉ hiện số lượt xem khi truyện đạt `PUBLIC_VIEWS_MIN = 1000` lượt thật (`publicViews()`, áp ở server nên số nhỏ không có trong HTML); dưới ngưỡng thì ẩn (không có ô trên ảnh bìa, ô bảng trống, trang truyện không có dòng Lượt xem). Admin luôn thấy số chính xác. Không bao giờ hiển thị số ảo.
-- Cách tính: mỗi lần mở trang truyện hoặc trang chương = 1 lượt (`track_view`); bỏ bot theo user-agent (gồm trình duyệt headless); cùng người (cookie `mxt_vid`) mở lại cùng trang trong 30 phút chỉ tính 1; quá 300 lượt/giờ từ một IP bị bỏ (cần `VIEW_IP_SALT`); tổng của truyện = trang truyện + mọi chương.
+- Cách tính: mỗi lần mở trang truyện hoặc trang chương = 1 lượt (`track_view`); bỏ bot theo user-agent (gồm trình duyệt headless); cùng người (cookie `mxt_vid`) mở lại cùng trang trong 15 phút chỉ tính 1; quá 300 lượt/giờ từ một IP bị bỏ (cần `VIEW_IP_SALT`); tổng của truyện = trang truyện + mọi chương.
 - HOT = admin ghim (`hot_pinned`) hoặc tự động: top `HOT_TOP = 5` lượt xem 7 ngày, tối thiểu `HOT_MIN_VIEWS_7D = 100`.
 - Tìm kiếm có sắp xếp `luot-xem`.
 

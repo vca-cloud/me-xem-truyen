@@ -50,7 +50,7 @@ export default async function ViewsPage({ searchParams }: PageProps<"/admin/luot
   const periodViews = data.daily.reduce((sum, day) => sum + day.views, 0);
 
   return <>
-    <PageHeading title="Lượt xem" description="Số liệu thật từ hệ thống theo dõi: đã lọc bot, một người xem lại cùng trang trong 30 phút chỉ tính 1 lần. Ngày theo giờ Việt Nam." />
+    <PageHeading title="Lượt xem" description="Số liệu thật từ hệ thống theo dõi: đã lọc bot, một người xem lại cùng trang trong 15 phút chỉ tính 1 lần. Ngày theo giờ Việt Nam." />
     {error && <Alert variant="destructive" className="mb-6"><AlertTitle>Không tải được số liệu lượt xem</AlertTitle><AlertDescription>{/admin_view_stats|function|schema cache/i.test(error) ? "Cần chạy file supabase/migrations/0009_views.sql trong Supabase SQL Editor." : error}</AlertDescription></Alert>}
 
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">

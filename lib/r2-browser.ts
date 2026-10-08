@@ -29,14 +29,14 @@ const tags = (xml: string, tag: string) => [...xml.matchAll(new RegExp(`<${tag}>
 // Parses one ListObjectsV2 response page.
 export function parseListObjects(xml: string) {
   const folders = [...xml.matchAll(/<CommonPrefixes>([\s\S]*?)<\/CommonPrefixes>/g)].flatMap((match) => tags(match[1], "Prefix"));
-  const files = [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map((match) => ({ key: tags(match[1], "Key")[0] ?? "", size: Number(tags(match[1], "Size")[0] ?? 0) }));
+  const files = [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map((match) => ({ key: tags(match[1], "Key")[0] ?? "", size: Number(tags(match[1], "Size")[0] ?? 0), lastModified: tags(match[1], "LastModified")[0] ?? "" }));
   return { folders, files, truncated: tags(xml, "IsTruncated")[0] === "true", next: tags(xml, "NextContinuationToken")[0] ?? null };
 }
 
 // Lists sub-folders and files directly under `prefix` (one level, "/" delimited), following pagination.
 export async function listR2(bucket: string, prefix: string) {
   const folders: string[] = [];
-  const files: { key: string; size: number }[] = [];
+  const files: { key: string; size: number; lastModified: string }[] = [];
   let token: string | null = null;
   for (let page = 0; page < 50; page += 1) {
     const url = new URL(endpoint(bucket));
@@ -105,21 +105,47 @@ export async function uploadChapterText(authorId: string, storyId: string, chapt
 }
 
 // Writes one object to the public bucket (cover images). Returns its public URL.
+// Each attempt is cut off after 20 s; network errors and 5xx are retried up to 3 times (a stalled connection to R2
+// otherwise keeps the upload hanging for minutes).
 export async function putPublicObject(key: string, body: Uint8Array<ArrayBuffer>, contentType: string, cacheControl?: string) {
   const bucket = r2Buckets().public;
   if (!bucket || !r2ApiReady()) throw new Error("Chưa cấu hình R2 để lưu ảnh.");
   const headers: Record<string, string> = { "Content-Type": contentType, ...(cacheControl ? { "Cache-Control": cacheControl } : {}) };
-  const signed = await client().sign(`${endpoint(bucket)}/${encodeKey(key)}`, { method: "PUT", body, headers });
-  const response = await fetch(signed.url, { method: "PUT", headers: signed.headers, body });
-  if (!response.ok) throw new Error(response.status === 403 ? "Khóa R2 chưa có quyền ghi (cần Object Read & Write)." : `R2 trả lỗi HTTP ${response.status} khi lưu ảnh.`);
-  return contentLinkFor("public", key);
+  let lastError = "";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const signed = await client().sign(`${endpoint(bucket)}/${encodeKey(key)}`, { method: "PUT", body, headers });
+      const response = await fetch(signed.url, { method: "PUT", headers: signed.headers, body, signal: AbortSignal.timeout(20_000) });
+      if (response.ok) return contentLinkFor("public", key);
+      if (response.status === 403) throw new Error("Khóa R2 chưa có quyền ghi (cần Object Read & Write).");
+      lastError = `R2 trả lỗi HTTP ${response.status} khi lưu ảnh.`;
+      if (response.status < 500) break;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Khóa R2")) throw error;
+      lastError = "Kết nối tới Cloudflare R2 bị gián đoạn, vui lòng thử lại.";
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+  }
+  throw new Error(lastError);
 }
 
 // Removes one object from the public bucket; a missing object is not an error.
+// Retries transient failures (network errors, 5xx) up to 3 times before giving up.
 export async function deletePublicObject(key: string) {
   const bucket = r2Buckets().public;
   if (!bucket || !r2ApiReady()) return;
-  const signed = await client().sign(`${endpoint(bucket)}/${encodeKey(key)}`, { method: "DELETE" });
-  const response = await fetch(signed.url, { method: "DELETE", headers: signed.headers });
-  if (!response.ok && response.status !== 404) throw new Error(`R2 trả lỗi HTTP ${response.status} khi xóa ảnh.`);
+  let lastError = "";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const signed = await client().sign(`${endpoint(bucket)}/${encodeKey(key)}`, { method: "DELETE" });
+      const response = await fetch(signed.url, { method: "DELETE", headers: signed.headers, signal: AbortSignal.timeout(15_000) });
+      if (response.ok || response.status === 404) return;
+      lastError = `HTTP ${response.status}`;
+      if (response.status < 500) break;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+  }
+  throw new Error(`R2 không xóa được ${key}: ${lastError}`);
 }

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { COVER_SIZES, isManagedCover } from "@/lib/cover";
-import { deletePublicObject, putPublicObject } from "@/lib/r2-browser";
+import { deletePublicObject, listR2, putPublicObject, r2ApiReady, r2Buckets } from "@/lib/r2-browser";
 import { r2Config } from "@/lib/r2";
 import type { createServiceClient } from "@/lib/supabase/admin";
 
@@ -61,7 +61,10 @@ export async function deleteCoverIfUnused(admin: ReturnType<typeof createService
   const { count } = await admin.from("stories").select("id", { count: "exact", head: true }).eq("cover_url", url);
   if (count) return;
   const key = new URL(url).pathname.replace(/^\//, "");
-  await Promise.all([deletePublicObject(key), deletePublicObject(key.replace(/\.(webp|jpg)$/, "-sm.$1"))]).catch(() => {});
+  for (const target of [key, key.replace(/\.(webp|jpg)$/, "-sm.$1")]) {
+    // A failure is logged, not thrown: the story change has already been saved, and the hourly cleanup retries later.
+    await deletePublicObject(target).catch((error) => console.error("[covers]", error instanceof Error ? error.message : error));
+  }
 }
 
 // Shared body of the admin and author upload endpoints: multipart form with "large" (600×750) and "small" (300×375),
@@ -85,4 +88,25 @@ export async function receiveCoverUpload(request: Request): Promise<{ url: strin
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Không lưu được ảnh.", status: 503 };
   }
+}
+
+const ORPHAN_AGE_MS = 24 * 60 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+let lastCleanup = 0;
+
+// Deletes uploaded covers that no story uses and that are older than 24 hours (uploaded, then the form was closed
+// without saving). The age keeps covers of forms still being filled in. Runs at most once an hour per server instance.
+export async function cleanupOrphanCovers(admin: ReturnType<typeof createServiceClient>) {
+  const bucket = r2Buckets().public;
+  if (!bucket || !r2ApiReady() || Date.now() - lastCleanup < CLEANUP_INTERVAL_MS) return;
+  lastCleanup = Date.now();
+  const { data, error } = await admin.from("stories").select("cover_url").like("cover_url", "%/covers/%");
+  if (error) return;
+  const used = new Set((data ?? []).map((row) => row.cover_url?.match(/\/covers\/([0-9a-f]{32})\./)?.[1]).filter(Boolean));
+  const { files } = await listR2(bucket, "covers/");
+  const stale = files.filter((file) => {
+    const id = file.key.match(/^covers\/([0-9a-f]{32})(-sm)?\.(webp|jpg)$/)?.[1];
+    return id && !used.has(id) && Date.now() - Date.parse(file.lastModified) > ORPHAN_AGE_MS;
+  });
+  for (const file of stale) await deletePublicObject(file.key).catch((error) => console.error("[covers]", error instanceof Error ? error.message : error));
 }

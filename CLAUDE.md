@@ -91,7 +91,8 @@ API tác giả (`guardAuthorApi()`, ghi bằng service role sau khi kiểm sessi
 - Tải ảnh trong form truyện (admin + tác giả) bằng `components/cover-uploader.tsx`, 2 chế độ: **Giữ nguyên toàn bộ ảnh** (mặc định — cả ảnh thu vào khung 4:5, phần trống lấp bằng bản phóng to mờ của chính ảnh, không cắt mất gì) và **Cắt ảnh** (`react-easy-crop`, `cropSize` = đúng cả khung vì mặc định thư viện chừa lề 5% làm mất viền); trình duyệt xuất 600×750 + 300×375 WebP (JPEG nếu trình duyệt không mã hóa được WebP), gửi `POST /api/admin/covers` (vai trò `content`) hoặc `/api/author/covers`. Vẫn nhận link dán tay (host khác thì không có srcset).
 - Server (`lib/cover-storage.ts`) đọc header file kiểm định dạng (chỉ JPEG/WebP), kích thước đúng, dung lượng (≤ 400 KB / 200 KB); lưu R2 public `covers/<uuid>.webp` + `covers/<uuid>-sm.webp`, `Cache-Control: public, max-age=31536000, immutable`.
 - Hiển thị qua `coverImageProps()` (srcset 300w/600w, width/height chống giật trang; trang chủ `loading=lazy`, trang truyện `fetchPriority=high`).
-- Thay/bỏ ảnh hoặc xóa truyện → `deleteCoverIfUnused()` xóa cả 2 file trên R2 nếu không truyện nào khác dùng. Ảnh tải lên rồi hủy không lưu sẽ còn lại trên R2 (chưa có dọn tự động).
+- Mỗi ảnh = 2 file trên R2 (`<id>.webp` + `<id>-sm.webp`). Thay/bỏ ảnh hoặc xóa truyện → `deleteCoverIfUnused()` xóa cả 2 file nếu không truyện nào dùng. Trong form, ảnh vừa tải nhưng bị thay/bỏ trước khi lưu được xóa ngay (`DELETE /api/admin/covers?url=` / `/api/author/covers?url=`). Ảnh tải lên rồi đóng form không lưu: `cleanupOrphanCovers()` chạy sau mỗi lần tải ảnh (`after()`, tối đa 1 lần/giờ/instance) xóa ảnh không truyện nào dùng và cũ hơn 24 giờ.
+- R2 PUT/DELETE có timeout (20s/15s) và thử lại 3 lần khi lỗi mạng/5xx; lỗi xóa được ghi log `[covers]`, không chặn việc lưu truyện.
 
 ### Admin dashboard (`/admin`)
 
@@ -355,6 +356,6 @@ Chưa hoàn thành:
 - Đổi mật khẩu admin tạm `admin@admin.com`.
 - Tên miền: gắn tên miền riêng cho R2 (thay `r2.dev`) và cho website; deploy Vercel kèm biến môi trường (Supabase, service role, R2, `VIEW_IP_SALT`, thông tin công ty).
 - Đẩy repo lên GitHub (chỉ khi chủ dự án đồng ý) để chạy `.github/workflows/supabase-keepalive.yml` / `supabase-backup.yml` (cần secrets).
-- Nạp Xu tự động (VietQR/SePay + MoMo doanh nghiệp), bucket R2 riêng tư cho chương trả phí, tủ sách, gom lượt xem theo ngày, CSP, dọn ảnh bìa mồ côi.
+- Nạp Xu tự động (VietQR/SePay + MoMo doanh nghiệp), bucket R2 riêng tư cho chương trả phí, tủ sách, gom lượt xem theo ngày, CSP.
 - Đồng bộ tự động AdSense Management API và Shopee Affiliate API (hiện nhập CSV).
 - Gắn link Shopee và bật AdSense trên trang public (khi chủ dự án yêu cầu).

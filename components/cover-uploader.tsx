@@ -81,6 +81,15 @@ export function CoverUploader({ id, value, onChange, uploadUrl }: { id?: string;
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [brokenUrl, setBrokenUrl] = useState<string | null>(null);
+  // Covers uploaded while this form is open: if one is replaced or removed before saving, it is discarded on R2
+  // right away (the server only deletes it when no story uses it).
+  const uploadedHere = useRef(new Set<string>());
+
+  function discard(url: string) {
+    if (!uploadedHere.current.has(url)) return;
+    uploadedHere.current.delete(url);
+    fetch(`${uploadUrl}?url=${encodeURIComponent(url)}`, { method: "DELETE" }).catch(() => {});
+  }
   const [frameSize, setFrameSize] = useState<{ width: number; height: number } | null>(null);
 
   // The crop window always equals the whole 4:5 frame (the cropper's default leaves a 5% margin that trims the edges).
@@ -128,6 +137,8 @@ export function CoverUploader({ id, value, onChange, uploadUrl }: { id?: string;
       const response = await fetch(uploadUrl, { method: "POST", body: form });
       const body = await response.json().catch(() => ({})) as { url?: string; error?: string };
       if (!response.ok || !body.url) throw new Error(body.error ?? "Không tải được ảnh lên.");
+      if (value) discard(value);
+      uploadedHere.current.add(body.url);
       onChange(body.url);
       toast.success(`Đã tải ảnh bìa (${Math.round(large.size / 1000)} KB). Nhớ bấm Lưu để cập nhật truyện.`);
       close();
@@ -146,7 +157,7 @@ export function CoverUploader({ id, value, onChange, uploadUrl }: { id?: string;
     <div className="min-w-0 flex-1 space-y-2">
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => fileInput.current?.click()}><ImageUp />Tải ảnh lên</Button>
-        {value && <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => onChange("")}><Trash2 />Bỏ ảnh</Button>}
+        {value && <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => { discard(value); onChange(""); }}><Trash2 />Bỏ ảnh</Button>}
         <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => choose(event.target.files?.[0])} />
       </div>
       <Input id={id} type="url" value={value} onChange={(event) => onChange(event.target.value)} placeholder="hoặc dán link ảnh https://..." aria-label="Link ảnh bìa" />

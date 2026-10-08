@@ -144,7 +144,7 @@ Chạy theo thứ tự trong Supabase SQL Editor:
 
 10. `0010_view_window.sql` — `track_view` tính lại lượt xem cùng người/cùng trang sau 15 phút (trước 30); giữ giới hạn 300 lượt/giờ/IP.
 
-Đã chạy `0001`–`0009` trên project hiện tại (`0010` chờ chạy). Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
+Đã chạy `0001`–`0010` trên project hiện tại. Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
 
 ## 7. Import truyện hàng loạt
 
@@ -371,5 +371,6 @@ Chưa hoàn thành:
 - Tên miền: gắn tên miền riêng cho R2 (thay `r2.dev`) và cho website; deploy Vercel kèm biến môi trường (Supabase, service role, R2, `VIEW_IP_SALT`, thông tin công ty).
 - Đẩy repo lên GitHub (chỉ khi chủ dự án đồng ý) để chạy `.github/workflows/supabase-keepalive.yml` / `supabase-backup.yml` (cần secrets).
 - Nạp Xu tự động (VietQR/SePay + MoMo doanh nghiệp), bucket R2 riêng tư cho chương trả phí, tủ sách, gom lượt xem theo ngày, CSP.
+- Khi lưu lượng lớn (vài nghìn người đọc/ngày), nâng giới hạn `track_view` từ 300 lên 1.000 lượt/giờ/IP (nhiều người dùng 4G chung IP) — không bỏ hẳn chặn cày view (chủ dự án đã đồng ý 08/10/2026).
 - Đồng bộ tự động AdSense Management API và Shopee Affiliate API (hiện nhập CSV).
 - Gắn link Shopee và bật AdSense trên trang public (khi chủ dự án yêu cầu).

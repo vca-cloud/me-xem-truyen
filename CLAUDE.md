@@ -54,6 +54,7 @@ public/               # Static assets
 
 - `/admin/dang-nhap` — đăng nhập quản trị; `/admin/xac-thuc` — nhập mã 2 lớp (cả hai ngoài protected route group).
 - `/admin` — dashboard doanh thu & theo dõi.
+- `/admin/luot-xem` — lượt xem thật: tổng từ trước tới nay, người đọc, hôm nay/7/30 ngày, biểu đồ theo ngày (`?ngay=7|30|90`), bảng theo truyện (tổng, 30/7 ngày, người đọc, sparkline 14 ngày), công tắc Ghim HOT (RPC `admin_view_stats`).
 - `/admin/truyen` — đăng truyện, thêm chương, sửa thông tin (tên truyện cố định để giữ link), xóa, import CSV; dữ liệu thật.
 - `/admin/kiem-duyet` — hàng chờ duyệt chương (bị gắn cờ hoặc tác giả gửi), duyệt/đăng/từ chối, bật/tắt quảng cáo từng chương, sửa từ điển che từ (mục 8d).
 - `/admin/tac-gia` — duyệt hồ sơ tác giả, đặt % doanh thu, xử lý yêu cầu rút Xu (mục 8e).
@@ -71,13 +72,14 @@ API tác giả (`guardAuthorApi()`, ghi bằng service role sau khi kiểm sessi
 - Server component `app/page.tsx` tải truyện, client component `components/home-page.tsx` hiển thị.
 - Header dùng chung (`components/site-header.tsx`): logo, menu Thể loại (từ admin), ô tìm kiếm → `/tim-kiem`, đăng nhập/đăng ký hoặc số Xu, nút sáng/tối. Điện thoại: dòng 1 logo + sáng/tối, dòng 2 menu + tìm kiếm + tài khoản.
 - Section truyện mới đăng (ô ảnh bìa 4:5, nhãn NEW trong 7 ngày, FULL khi hoàn thành), mới cập nhật (bảng), truyện hoàn thành; ẩn section trống.
+- Tag trên ảnh bìa: HOT (cam `highlight`, icon lửa), NEW (#2D74A8, 7 ngày), FULL (#154B95, hoàn thành) — `StoryTag`; số lượt xem thật góc phải ảnh bìa; bảng có cột Lượt xem (từ `sm`) và tag HOT nhỏ cạnh tên.
 - Danh sách truyện lọc theo thể loại trong admin, phân trang 10 truyện/trang; cột Tình trạng; badge thể loại một dòng, truncate text.
 - Cover/tên truyện liên kết tới `/truyen/[slug]`.
 
 ### Trang chi tiết truyện
 
 - Breadcrumb dạng `Trang chủ › Tên truyện`.
-- Ảnh bìa (`cover_url`), tác giả, thể loại, trạng thái, tổng chương, ngày cập nhật. Không hiển thị rating/lượt đọc/nhãn HOT khi chưa có dữ liệu thật.
+- Ảnh bìa (`cover_url`), tác giả, thể loại, trạng thái, lượt xem (thật), tổng chương, ngày cập nhật; tag HOT nếu có. Không hiển thị rating khi chưa có dữ liệu thật.
 - Nút đọc từ đầu, đọc mới nhất, Mê Nghe Truyện, tủ sách (đang tắt — chưa làm); mô tả và danh sách chương (2 cột, mỗi cột tối đa 10 chương, 20 chương/trang, `?trang=`).
 
 ### Trang đọc chương
@@ -138,7 +140,9 @@ Chạy theo thứ tự trong Supabase SQL Editor:
 7. `0007_moderation.sql` — `moderation_terms` (309 từ khởi đầu; mức 1 = chỉ che, 2 = tắt QC + duyệt tay, 3 = tắt QC + duyệt, có thể 18+), cột chương `ads_enabled`, `moderation_status` (unscanned/clean/pending/approved), `moderation_score`, `moderation_hits`, `is_mature`; `admin_moderation_summary()`, `admin_moderation_queue()`.
 8. `0008_authors.sql` — `author_profiles`, `stories.owner_id`, `chapters.publish_status` (draft/submitted/published/rejected) + `review_note`/`submitted_at`; RLS chỉ hiện chương đã đăng (truyện của tác giả chỉ hiện khi có chương đã đăng); `author_earnings`, `author_payouts` (một yêu cầu/kỳ), `unlock_chapter()` ghi phần tác giả, `author_balance()`, `admin_list_authors()`.
 
-Đã chạy đủ `0001`–`0008` trên project hiện tại. Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
+9. `0009_views.sql` — `stories.hot_pinned`; `story_view_stats()` (public: tổng + 7 ngày + hot_pinned theo truyện, chỉ truyện đang công khai); `admin_view_stats(p_days)` (admin: tổng, người đọc, hôm nay/7/30 ngày, chuỗi theo ngày, theo truyện + sparkline 14 ngày).
+
+Đã chạy `0001`–`0008` trên project hiện tại (`0009` chờ chạy). Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
 
 ## 7. Import truyện hàng loạt
 
@@ -173,6 +177,12 @@ Tại `/admin/truyen`: **Tải file mẫu** (`mau-import-truyen-nhieu-chuong.csv
 - `AdSlot` chừa sẵn chiều cao, có nhãn “Quảng cáo”, lazy load bằng IntersectionObserver, `data-adtest` ngoài production, hỗ trợ `disabled` cho truyện nhạy cảm.
 - Chỉ đặt `AdSenseScript`/`AdSlot` trên trang chủ, trang truyện, trang chương có nội dung — không đặt ở trang đăng nhập, admin, lỗi hoặc chương trống.
 - Khởi đầu đề xuất: giữa chương + cuối chương + anchor (Auto ads, tắt in-page Auto ads); `chapter-top`, `home-top` thử sau khi có số liệu.
+
+### Lượt xem và tag HOT
+
+- Lượt xem hiển thị ở mọi nơi là số thật từ `view_events` (`getViewStats()` trong `lib/stories.ts`, cache theo request); thiếu RPC thì trang vẫn chạy, chỉ không có số. Định dạng `formatViews()` (1,2K / 3,4M) trong `lib/views.ts`.
+- HOT = admin ghim (`hot_pinned`) hoặc tự động: top `HOT_TOP = 5` lượt xem 7 ngày, tối thiểu `HOT_MIN_VIEWS_7D = 100`.
+- Tìm kiếm có sắp xếp `luot-xem`.
 
 ### Quy tắc chính sách bắt buộc
 

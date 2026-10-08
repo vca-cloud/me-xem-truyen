@@ -65,6 +65,13 @@ export function splitManuscript(blocks: ManuscriptBlock[]): ManuscriptResult {
     if (!chapter.title) chapter.title = `Chương ${chapter.number}`;
   }
 
+  warnings.push(...chapterWarnings(chapters, preamble.length));
+  return { chapters, preamble, warnings };
+}
+
+// Problems worth checking before upload: none found, duplicates, gaps, very short chapters, text before chapter 1.
+export function chapterWarnings(chapters: { number: number; words: number }[], preambleCount: number) {
+  const warnings: string[] = [];
   if (!chapters.length) warnings.push("Không tìm thấy tiêu đề chương nào. Mỗi chương cần bắt đầu bằng một dòng như “Chương 1: Tên chương”.");
   const seen = new Set<number>();
   const duplicates = new Set<number>();
@@ -76,8 +83,8 @@ export function splitManuscript(blocks: ManuscriptBlock[]): ManuscriptResult {
   if (missing.length) warnings.push(`Thiếu chương: ${missing.join(", ")}${missing.length >= 20 ? "…" : ""}.`);
   const short = chapters.filter((chapter) => chapter.words < MIN_CHAPTER_WORDS).map((chapter) => chapter.number);
   if (short.length) warnings.push(`Chương ngắn (dưới ${MIN_CHAPTER_WORDS} chữ, có thể tách nhầm): ${short.slice(0, 20).join(", ")}${short.length > 20 ? "…" : ""}.`);
-  if (preamble.length) warnings.push(`Có ${preamble.length} đoạn trước chương đầu tiên (lời giới thiệu?) — phần này không được tải lên.`);
-  return { chapters, preamble, warnings };
+  if (preambleCount) warnings.push(`Có ${preambleCount} đoạn trước chương đầu tiên (lời giới thiệu?) — phần này không được tải lên.`);
+  return warnings;
 }
 
 // Text stored on R2, same layout as the existing files: "Chương N: Tên" on the first line, a blank line,
@@ -108,4 +115,25 @@ export function markdownBlocks(markdown: string): ManuscriptBlock[] {
 // Plain text → blocks: every non-empty line is a paragraph (novels usually put one paragraph per line).
 export function textBlocks(text: string): ManuscriptBlock[] {
   return text.replace(/\r\n?/g, "\n").split("\n").map((line) => ({ text: line }));
+}
+
+// "Chương 12.docx", "chuong-012.md", "12 - Tên.txt" → 12 (used when a file holds one chapter without a heading line).
+export function chapterNumberFromName(name: string) {
+  const base = name.normalize("NFC").replace(/\.[^.]+$/, "");
+  const match = base.match(/(?:chương|chuong|chapter|ch)\s*[-_.]?\s*0*(\d{1,5})/iu) ?? base.match(/^\s*0*(\d{1,5})(?!\d)/);
+  return match ? Number(match[1]) : null;
+}
+
+// Which story a file belongs to when many files are uploaded together:
+// - inside a folder → the folder name ("Thủ khoa xuyên sách/Chương 1.md");
+// - "Tên truyện - Quyển 2.docx" / "… Tập 3" / "… Phần 1" / "… Chương 5" → "Tên truyện", ordered by that number;
+// - otherwise the file name itself is the story title.
+export function fileStoryInfo(name: string, path = "") {
+  const parts = path.normalize("NFC").split("/").filter(Boolean);
+  const base = name.normalize("NFC").replace(/\.[^.]+$/, "").trim();
+  const suffix = base.match(/^(.*?)\s*[-–—_:,]?\s*(?<![\p{L}\p{N}])(?:quyển|quyen|tập|tap|phần|phan|chương|chuong|volume|vol|part)\s*\.?\s*0*(\d{1,5}|[ivxlcdm]{1,8})\s*$/iu);
+  const order = suffix ? (/^\d+$/.test(suffix[2]) ? Number(suffix[2]) : romanToNumber(suffix[2]) ?? 0) : chapterNumberFromName(name) ?? 0;
+  if (parts.length >= 2) return { title: parts[parts.length - 2].trim(), order };
+  if (suffix && suffix[1].trim()) return { title: suffix[1].replace(/[-–—_:,\s]+$/, "").trim(), order };
+  return { title: chapterNumberFromName(name) !== null && /^(chương|chuong|chapter|\d)/iu.test(base) ? "" : base, order };
 }

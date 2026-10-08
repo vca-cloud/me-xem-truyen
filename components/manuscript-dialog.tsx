@@ -219,14 +219,20 @@ export function ManuscriptDialog({ open, onOpenChange, mode, stories = [], story
     }
   }
 
+  // Moves a file to another story (or into a story of its own), then opens that story so the move is visible.
   function moveFile(fileId: string, key: string) {
+    const file = files.find((item) => item.id === fileId);
+    if (!file || key === groupOf[fileId]) return;
+    let title = meta[key]?.title;
     if (key === SPLIT) {
-      const file = files.find((item) => item.id === fileId)!;
       const own = `f:${fileId}`;
-      setMeta((current) => ({ ...current, [own]: { title: file.name.replace(/\.[^.]+$/, ""), target: NEW, author: "", status: "Đang ra", genres: [], free: common.free, include: true } }));
+      title = file.name.replace(/\.[^.]+$/, "");
+      setMeta((current) => ({ ...current, [own]: { title: title!, target: NEW, author: "", status: "Đang ra", genres: [], free: common.free, include: true } }));
       key = own;
     }
     setGroupOf((current) => ({ ...current, [fileId]: key }));
+    setExpanded(key);
+    toast.success(`Đã chuyển “${file.name}” sang “${title || "truyện mới"}”.`);
   }
 
   const updateMeta = (key: string, patch: Partial<GroupMeta>) => setMeta((current) => ({ ...current, [key]: { ...current[key], ...patch } }));
@@ -338,7 +344,8 @@ export function ManuscriptDialog({ open, onOpenChange, mode, stories = [], story
           <div className="space-y-2">{groups.map((group) => {
             const open = expanded === group.key || groups.length === 1;
             return <div key={group.key} className={`rounded-md border ${group.settings.include ? "" : "opacity-60"}`}>
-              <div className="flex flex-wrap items-center gap-2 p-3">
+              {/* Clicking anywhere on the header that is not a field or button opens / closes the story. */}
+              <div className={`flex flex-wrap items-center gap-2 p-3 ${groups.length > 1 ? "cursor-pointer" : ""}`} onClick={(event) => { if (groups.length > 1 && !(event.target as HTMLElement).closest("input, button, [role=combobox], [role=checkbox]")) setExpanded(open ? null : group.key); }}>
                 {mode === "admin" && <Checkbox checked={group.settings.include} onCheckedChange={(checked) => updateMeta(group.key, { include: checked === true })} aria-label={`Tải truyện ${group.settings.title}`} />}
                 {groups.length > 1 && <Button type="button" variant="ghost" size="icon-sm" onClick={() => setExpanded(open ? null : group.key)} aria-label={open ? "Thu gọn" : "Xem chi tiết"}>{open ? <ChevronDown /> : <ChevronRight />}</Button>}
                 {mode === "admin" && !group.targetId

@@ -25,8 +25,9 @@ export const metadata: Metadata = {
   openGraph: { type: "website", siteName: siteInfo.name, locale: "vi_VN" },
 };
 
-// Applies the saved light/dark choice before first paint (reader pages only; admin stays light).
-const themeScript = `try{var t=localStorage.getItem("theme");if(!location.pathname.startsWith("/admin")&&(t==="dark"||(!t&&matchMedia("(prefers-color-scheme: dark)").matches)))document.documentElement.classList.add("dark")}catch(e){}`;
+// Applies the theme before first paint (reader pages only; admin stays light). Dark is the default;
+// light only when the reader chose it with the theme button.
+const themeScript = `try{if(!location.pathname.startsWith("/admin")&&localStorage.getItem("theme")!=="light")document.documentElement.classList.add("dark")}catch(e){if(!location.pathname.startsWith("/admin"))document.documentElement.classList.add("dark")}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

@@ -6,13 +6,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CloudDownload, Download, ExternalLink, FileUp, ListPlus, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { BookUp, CloudDownload, Download, ExternalLink, FileUp, ListPlus, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { PageHeading, StatusBadge, TableCard } from "@/components/admin-ui";
 import { useConfirm } from "@/components/confirm-dialog";
 import { GenreCombobox } from "@/components/genre-combobox";
 import { HitsBadge, MatureBadge, ModerationStatusBadge, type ModerationHitSummary } from "@/components/moderation-badges";
 import { Switch } from "@/components/ui/switch";
 import { R2ImportDialog } from "@/components/r2-import-dialog";
+import { ManuscriptDialog } from "@/components/manuscript-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -235,6 +236,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
   const [chapterTarget, setChapterTarget] = useState<AdminStory | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [r2Open, setR2Open] = useState(false);
+  const [manuscriptOpen, setManuscriptOpen] = useState(false);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -303,6 +305,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
       <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}><FileUp />Import hàng loạt</Button>
       <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) { setImportErrors([]); setImportFile(file); } }} />
       <Button type="button" variant="outline" onClick={() => setR2Open(true)}><CloudDownload />Nhập từ Cloudflare</Button>
+      <Button type="button" variant="outline" onClick={() => setManuscriptOpen(true)}><BookUp />Tải bản thảo</Button>
       <Button onClick={openCreate}><Plus />Đăng truyện mới</Button>
     </div>} />
 
@@ -387,6 +390,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
       </DialogContent>
     </Dialog>
 
+    <ManuscriptDialog open={manuscriptOpen} onOpenChange={setManuscriptOpen} mode="admin" stories={stories} catalog={catalog} onDone={() => router.refresh()} />
     <R2ImportDialog open={r2Open} onOpenChange={setR2Open} stories={stories} catalog={catalog} onGenreCreated={(name) => setCatalog((items) => [...items, name])} onDone={() => router.refresh()} />
 
     <Dialog open={!!importFile} onOpenChange={(open) => { if (!open) { setImportFile(null); setImportErrors([]); } }}>

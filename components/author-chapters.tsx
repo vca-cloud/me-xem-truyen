@@ -4,9 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Plus, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, BookUp, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import { AuthorStoryDialog, type AuthorStory } from "@/components/author-area";
 import { useConfirm } from "@/components/confirm-dialog";
+import { ManuscriptDialog } from "@/components/manuscript-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ export function AuthorStoryChapters({ story, chapters, catalog, trusted }: { sto
   const [editor, setEditor] = useState<Editor | null>(null);
   const [editingStory, setEditingStory] = useState(false);
   const [pending, setPending] = useState(false);
+  const [manuscriptOpen, setManuscriptOpen] = useState(false);
   const nextNumber = (chapters.at(-1)?.chapter_number ?? 0) + 1;
 
   async function open(chapter?: AuthorChapter) {
@@ -77,7 +79,7 @@ export function AuthorStoryChapters({ story, chapters, catalog, trusted }: { sto
     <Button variant="ghost" size="sm" className="mb-3" nativeButton={false} render={<Link href="/tac-gia" />}><ArrowLeft />Khu vực tác giả</Button>
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0"><h1 className="truncate text-2xl font-bold tracking-tight">{story.title}</h1><p className="text-sm text-muted-foreground">{story.lock_from_chapter ? `Khóa từ chương ${story.lock_from_chapter}, ${formatCoins(story.lock_price_coins)}/chương` : "Miễn phí toàn bộ"} · {trusted ? "Tác giả tin cậy: chương sạch được đăng ngay" : "Chương mới cần admin duyệt trước khi đăng"}</p></div>
-      <div className="flex gap-2"><Button variant="outline" onClick={() => setEditingStory(true)}><Pencil />Sửa thông tin</Button><Button onClick={() => open()}><Plus />Viết chương {nextNumber}</Button></div>
+      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setEditingStory(true)}><Pencil />Sửa thông tin</Button><Button variant="outline" onClick={() => setManuscriptOpen(true)}><BookUp />Tải bản thảo</Button><Button onClick={() => open()}><Plus />Viết chương {nextNumber}</Button></div>
     </div>
 
     <Card><CardHeader><CardTitle>Danh sách chương ({chapters.length})</CardTitle></CardHeader>
@@ -119,6 +121,7 @@ export function AuthorStoryChapters({ story, chapters, catalog, trusted }: { sto
       </DialogContent>
     </Dialog>
 
+    <ManuscriptDialog open={manuscriptOpen} onOpenChange={setManuscriptOpen} mode="author" story={story} existingNumbers={chapters.map((chapter) => chapter.chapter_number)} onDone={() => router.refresh()} />
     {editingStory && <AuthorStoryDialog open={editingStory} onOpenChange={setEditingStory} story={story} catalog={catalog} />}
   </>;
 }

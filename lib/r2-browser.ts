@@ -149,3 +149,14 @@ export async function deletePublicObject(key: string) {
   }
   throw new Error(`R2 không xóa được ${key}: ${lastError}`);
 }
+
+// Whether an object already exists in the public bucket (used to never overwrite chapter files).
+export async function publicObjectExists(key: string) {
+  const bucket = r2Buckets().public;
+  if (!bucket || !r2ApiReady()) throw new Error("Chưa cấu hình R2.");
+  const signed = await client().sign(`${endpoint(bucket)}/${encodeKey(key)}`, { method: "HEAD" });
+  const response = await fetch(signed.url, { method: "HEAD", headers: signed.headers, signal: AbortSignal.timeout(15_000) });
+  if (response.status === 404) return false;
+  if (response.ok) return true;
+  throw new Error(`R2 trả lỗi HTTP ${response.status} khi kiểm tra file.`);
+}

@@ -213,6 +213,16 @@ Nút **Nhập từ Cloudflare** (`/admin/truyen`, `components/r2-import-dialog.t
 - API: `GET /api/admin/r2/folders?source=public|private&prefix=`, `GET /api/admin/r2/preview?source=&prefix=<thư mục/>` (vai trò `content`).
 - Cần `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (token R2 **Object Read & Write** — ghi cần cho chương tác giả và ảnh bìa); r2.dev public không liệt kê được thư mục. Thiếu khóa → API trả 503 và hộp hiện hướng dẫn.
 
+## 8b3. Tải bản thảo (một file nhiều chương)
+
+Nút **Tải bản thảo** ở `/admin/truyen` (truyện mới hoặc thêm vào truyện có sẵn) và ở trang truyện của tác giả (`components/manuscript-dialog.tsx`).
+
+- Nhận `.docx` (Word, Google Docs tải về; đọc bằng `mammoth` trong trình duyệt, giữ Heading 1–6), `.md`, `.txt` (UTF-8/UTF-16/Windows-1258), tối đa 20 MB; hoặc link Google Docs chia sẻ công khai qua `GET /api/manuscript/google-doc?url=` (chỉ lấy id, chỉ gọi docs.google.com, export docx ≤ 4 MB vì giới hạn response Vercel). `.doc`/`.pages` → hướng dẫn lưu lại thành .docx.
+- Tách chương ở trình duyệt (`lib/manuscript.ts`, thuần, có thể test): dòng `Chương N…`/`CHƯƠNG XII - …`/`Chapter N` là ranh giới; `Hồi N` chỉ khi là heading; đoạn văn thường chỉ tính khi ngắn (≤ 120 ký tự sau số) và không gồm nhiều câu. Không có dòng nào khớp thì tách theo heading cấp cao nhất. Tên chương viết hoa chữ đầu (`sentenceCase`). Cảnh báo: thiếu/trùng số, chương < 300 chữ, đoạn trước chương 1 (không tải). Markdown: mỗi dòng là một đoạn.
+- Màn xem trước: sửa tên, bỏ chọn chương; chương đã có trên web bị bỏ qua; ô **Miễn phí cả truyện** (xóa `lock_from_chapter`).
+- Gửi theo lô (≤ 50 chương, ≤ 1,2 triệu ký tự) tới `POST /api/admin/stories/[id]/manuscript` hoặc `/api/author/stories/[id]/manuscript` (`lib/manuscript-storage.ts`): lưu R2 public đúng bố cục `<Tên truyện>/Chương N.txt` (truyện đã có file thì dùng lại thư mục cũ), nội dung `Chương N: Tên` + dòng trống + đoạn văn; **không ghi đè** chương/file đã có (HEAD trước khi PUT); kiểm duyệt từng chương (`moderateContent`). Tác giả: tối thiểu 200 ký tự, tin cậy + sạch → đăng ngay, còn lại `submitted`.
+- Lưu ý: file chương ở bucket public có đường dẫn dễ đoán — chương thu Xu có thể bị đọc lén; kế hoạch: chuyển riêng chương trả phí sang bucket riêng tư cùng bố cục.
+
 ## 8c. Quy tắc bảo mật
 
 - Link nội dung chương: `https://…` (public, host phải thuộc `R2_PUBLIC_URL`/`CHAPTER_TEXT_HOSTS`) hoặc `r2://đường-dẫn` (bucket R2 riêng tư, đọc bằng `aws4fetch` + `R2_*`). Luôn kiểm bằng `contentUrlError()` và đọc bằng `fetchChapterText()` (`lib/chapter-content.ts`). Chương trả phí nên dùng `r2://`.

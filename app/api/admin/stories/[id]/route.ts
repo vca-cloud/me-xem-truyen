@@ -35,6 +35,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
     if (status !== undefined) { if (!statuses.includes(status)) return NextResponse.json({ error: "Trạng thái không hợp lệ." }, { status: 400 }); update.status = status; }
 
     if (typeof body.ads_disabled === "boolean") update.ads_disabled = body.ads_disabled;
+    if (typeof body.hot_pinned === "boolean") update.hot_pinned = body.hot_pinned;
     if ("lock_from_chapter" in body || "lock_price_coins" in body) {
       const lock = parseLockSettings(body.lock_from_chapter, body.lock_price_coins);
       if (lock.error) return NextResponse.json({ error: lock.error }, { status: 400 });

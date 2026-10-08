@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { maskForReaders } from "@/lib/moderation";
 import { createClient } from "@/lib/supabase/server";
 import { storySlug, type Chapter, type StoryStatus } from "@/lib/story-data";
+import { hotStoryIds, type ViewStats } from "@/lib/views";
 
 export type StorySummary = {
   id: string;
@@ -136,4 +137,14 @@ export const getGenreCatalog = cache(async (): Promise<{ name: string; slug: str
   const supabase = await createClient();
   const { data } = await supabase.from("genres").select("name, slug").order("name");
   return (data ?? []).sort((a, b) => a.name.localeCompare(b.name, "vi"));
+});
+
+// Real view counts per story id plus the set of HOT story ids. Empty when the stats function is unavailable
+// (e.g. migration 0009 not run yet), so pages still render without numbers.
+export const getViewStats = cache(async (): Promise<{ stats: Map<string, ViewStats>; hot: Set<string> }> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("story_view_stats");
+  if (error || !data) return { stats: new Map(), hot: new Set() };
+  const stats = new Map((data as ({ story_id: string } & ViewStats)[]).map(({ story_id, ...value }) => [story_id, value]));
+  return { stats, hot: hotStoryIds(stats) };
 });

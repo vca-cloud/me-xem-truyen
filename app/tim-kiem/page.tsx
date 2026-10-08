@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { GenreBadges, StatusBadge } from "@/components/home-page";
+import { GenreBadges, StatusBadge, StoryTag } from "@/components/home-page";
 import { SearchFilters } from "@/components/search-filters";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { maskForReaders } from "@/lib/moderation";
 import { searchHref, searchStories, sortOptions, type SearchSort, type SearchState } from "@/lib/search";
-import { getGenreCatalog, listStories } from "@/lib/stories";
+import { getGenreCatalog, getViewStats, listStories } from "@/lib/stories";
+import { formatViews } from "@/lib/views";
 
 const PAGE_SIZE = 20;
 const statuses = ["Đang ra", "Hoàn thành", "Tạm dừng"];
@@ -20,7 +21,7 @@ const one = (value: string | string[] | undefined) => (Array.isArray(value) ? va
 
 export default async function SearchPage({ searchParams }: PageProps<"/tim-kiem">) {
   const params = await searchParams;
-  const [catalog, rows] = await Promise.all([getGenreCatalog(), listStories().catch(() => null)]);
+  const [catalog, rows, views] = await Promise.all([getGenreCatalog(), listStories().catch(() => null), getViewStats()]);
   const slugs = new Set(catalog.map((genre) => genre.slug));
   const sort = one(params.sap_xep) as SearchSort;
   const state: SearchState = {
@@ -31,7 +32,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/tim-kiem"
     sort: sortOptions.some((option) => option.value === sort) ? sort : "cap-nhat",
   };
   const genreNames = state.genres.map((slug) => catalog.find((genre) => genre.slug === slug)!.name);
-  const stories = await Promise.all((rows ?? []).map(async (story) => ({ ...story, title: await maskForReaders(story.title) })));
+  const stories = await Promise.all((rows ?? []).map(async (story) => ({ ...story, title: await maskForReaders(story.title), views: views.stats.get(story.id)?.total_views ?? 0, hot: views.hot.has(story.id) })));
   const results = searchStories(stories, { q: state.q, genres: genreNames, mode: state.mode, status: state.status, sort: state.sort });
   const pageCount = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const page = Math.min(Math.max(Number(one(params.trang)) || 1, 1), pageCount);
@@ -45,13 +46,15 @@ export default async function SearchPage({ searchParams }: PageProps<"/tim-kiem"
       <div className="min-w-0"><h1 className="truncate text-2xl font-bold tracking-tight">{heading}</h1><p className="text-sm text-muted-foreground">{rows ? `${results.length} truyện phù hợp` : "Không tải được danh sách truyện. Vui lòng thử lại sau."}</p></div>
       <SearchFilters key={searchHref(state)} catalog={catalog} initial={state} />
       <Card className="overflow-hidden border-border/70 py-0">
-        <div className="grid grid-cols-[minmax(0,1fr)_6.5rem_4rem] border-b bg-muted/50 px-4 py-3 text-xs font-bold sm:grid-cols-[minmax(0,1fr)_minmax(0,10rem)_minmax(0,16rem)_8rem_6rem] sm:px-5"><span>Tên truyện</span><span className="hidden truncate sm:block">Tác giả</span><span className="hidden truncate sm:block">Thể loại</span><span>Tình trạng</span><span className="text-right">Chương</span></div>
-        {pageResults.map((story) => <div key={story.slug} className="grid grid-cols-[minmax(0,1fr)_6.5rem_4rem] items-center border-b px-4 py-3 text-sm last:border-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,10rem)_minmax(0,16rem)_8rem_6rem] sm:px-5">
-          <div className="min-w-0 pr-3"><Link href={`/truyen/${story.slug}`} className="block truncate font-medium hover:text-highlight">{story.title}</Link><p className="truncate text-xs text-muted-foreground sm:hidden">{story.author}</p></div>
+        <div className="grid grid-cols-[minmax(0,1fr)_6.5rem_4rem] border-b bg-muted/50 px-4 py-3 text-xs font-bold sm:grid-cols-[minmax(0,1fr)_minmax(0,10rem)_minmax(0,14rem)_8rem_5rem_6rem] sm:px-5"><span>Tên truyện</span><span className="hidden truncate sm:block">Tác giả</span><span className="hidden truncate sm:block">Thể loại</span><span>Tình trạng</span><span className="text-right">Chương</span><span className="hidden text-right sm:block">Lượt xem</span></div>
+        {pageResults.map((story) => <div key={story.slug} className="grid grid-cols-[minmax(0,1fr)_6.5rem_4rem] items-center border-b px-4 py-3 text-sm last:border-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,10rem)_minmax(0,14rem)_8rem_5rem_6rem] sm:px-5">
+          <div className="min-w-0 pr-3"><Link href={`/truyen/${story.slug}`} className="flex min-w-0 items-center gap-1.5 font-medium hover:text-highlight"><span className="truncate">{story.title}</span>{story.hot && <StoryTag tag="HOT" small />}</Link><p className="truncate text-xs text-muted-foreground sm:hidden">{story.author}</p></div>
           <span className="hidden truncate pr-3 text-muted-foreground sm:block">{story.author}</span>
           <div className="hidden min-w-0 pr-3 sm:block"><GenreBadges genres={story.genres} /></div>
           <div className="min-w-0 pr-2"><StatusBadge status={story.status} /></div>
           <span className="truncate text-right font-semibold tabular-nums text-primary">{story.chapter_count}</span>
+        
+          <span className="hidden truncate text-right tabular-nums text-muted-foreground sm:block" title={`${story.views.toLocaleString("vi-VN")} lượt xem`}>{formatViews(story.views)}</span>
         </div>)}
         {pageResults.length === 0 && <p className="px-5 py-10 text-center text-sm text-muted-foreground">Không tìm thấy truyện phù hợp. Thử bỏ bớt thể loại hoặc chọn “Có ít nhất một thể loại”.</p>}
       </Card>

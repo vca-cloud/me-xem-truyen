@@ -1,8 +1,8 @@
 // Story search shared by the header and /tim-kiem (pure, client + server).
 // Matching ignores case and Vietnamese diacritics: "co dai" finds "Cổ Đại", "nguyet" finds "Nguyệt".
 
-export type SearchableStory = { slug: string; title: string; author: string; genres: string[]; status: string; chapter_count: number; created_at: string; updated_at: string };
-export type SearchSort = "cap-nhat" | "moi-dang" | "nhieu-chuong" | "ten";
+export type SearchableStory = { slug: string; title: string; author: string; genres: string[]; status: string; chapter_count: number; created_at: string; updated_at: string; views?: number };
+export type SearchSort = "cap-nhat" | "moi-dang" | "luot-xem" | "nhieu-chuong" | "ten";
 export type GenreMode = "tat-ca" | "mot-trong";
 // Filter state of /tim-kiem; genres are genre slugs.
 export type SearchState = { q: string; genres: string[]; mode: GenreMode; status: string; sort: SearchSort };
@@ -10,6 +10,7 @@ export type SearchState = { q: string; genres: string[]; mode: GenreMode; status
 export const sortOptions: { value: SearchSort; label: string }[] = [
   { value: "cap-nhat", label: "Mới cập nhật" },
   { value: "moi-dang", label: "Mới đăng" },
+  { value: "luot-xem", label: "Nhiều lượt xem" },
   { value: "nhieu-chuong", label: "Nhiều chương" },
   { value: "ten", label: "Tên A → Z" },
 ];
@@ -40,6 +41,7 @@ export function searchStories<T extends SearchableStory>(stories: T[], options: 
   const sort = options.sort ?? "cap-nhat";
   return result.sort((a, b) =>
     sort === "moi-dang" ? b.created_at.localeCompare(a.created_at)
+      : sort === "luot-xem" ? (b.views ?? 0) - (a.views ?? 0)
       : sort === "nhieu-chuong" ? b.chapter_count - a.chapter_count
         : sort === "ten" ? a.title.localeCompare(b.title, "vi")
           : b.updated_at.localeCompare(a.updated_at));

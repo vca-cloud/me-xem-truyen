@@ -181,6 +181,8 @@ Tại `/admin/truyen`: **Tải file mẫu** (`mau-import-truyen-nhieu-chuong.csv
 ### Lượt xem và tag HOT
 
 - Lượt xem hiển thị ở mọi nơi là số thật từ `view_events` (`getViewStats()` trong `lib/stories.ts`, cache theo request); thiếu RPC thì trang vẫn chạy, chỉ không có số. Định dạng `formatViews()` (1,2K / 3,4M) trong `lib/views.ts`.
+- Trang công khai chỉ hiện số lượt xem khi truyện đạt `PUBLIC_VIEWS_MIN = 1000` lượt thật (`publicViews()`, áp ở server nên số nhỏ không có trong HTML); dưới ngưỡng thì ẩn (không có ô trên ảnh bìa, ô bảng trống, trang truyện không có dòng Lượt xem). Admin luôn thấy số chính xác. Không bao giờ hiển thị số ảo.
+- Cách tính: mỗi lần mở trang truyện hoặc trang chương = 1 lượt (`track_view`); bỏ bot theo user-agent (gồm trình duyệt headless); cùng người (cookie `mxt_vid`) mở lại cùng trang trong 30 phút chỉ tính 1; quá 300 lượt/giờ từ một IP bị bỏ (cần `VIEW_IP_SALT`); tổng của truyện = trang truyện + mọi chương.
 - HOT = admin ghim (`hot_pinned`) hoặc tự động: top `HOT_TOP = 5` lượt xem 7 ngày, tối thiểu `HOT_MIN_VIEWS_7D = 100`.
 - Tìm kiếm có sắp xếp `luot-xem`.
 

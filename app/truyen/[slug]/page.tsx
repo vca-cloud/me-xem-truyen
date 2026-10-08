@@ -12,7 +12,7 @@ import { ViewTracker } from "@/components/view-tracker";
 import { defaultAudioSiteUrl, validTextUrl } from "@/lib/story-data";
 import { chapterPrice, formatCoins } from "@/lib/coins";
 import { getGenreCatalog, getReaderStory, getViewStats } from "@/lib/stories";
-import { formatViews } from "@/lib/views";
+import { formatViews, publicViews } from "@/lib/views";
 import { StoryTag } from "@/components/home-page";
 
 const CHAPTERS_PER_COLUMN = 10;
@@ -37,7 +37,7 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/tr
   const story = await getReaderStory(slug);
   if (!story) notFound();
   const viewStats = await getViewStats();
-  const views = viewStats.stats.get(story.id)?.total_views ?? 0;
+  const views = publicViews(viewStats.stats.get(story.id)?.total_views ?? 0);
   const hot = viewStats.hot.has(story.id);
   const query = await searchParams;
   const newestFirst = query.thu_tu === "moi";
@@ -65,7 +65,7 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/tr
           {hot && <div className="mb-2"><StoryTag tag="HOT" /></div>}<h1 className="line-clamp-2 text-3xl font-bold tracking-tight text-primary sm:text-4xl" title={story.title}>{story.title}</h1>
           <div className="grid min-w-0 gap-x-10 gap-y-3 text-base leading-7 sm:grid-cols-2 [&>div]:min-w-0">
             <div><p className="truncate"><span className="text-primary">Tác giả:</span> {story.author}</p><p className="truncate" title={story.genres.join(", ")}><span className="text-primary">Thể loại:</span> {story.genres.join(", ") || "Chưa phân loại"}</p></div>
-            <div><p><span className="text-primary">Trạng thái:</span> <strong className="rounded bg-highlight px-2 py-1 text-sm text-highlight-foreground">{story.status}</strong></p><p><span className="text-primary">Lượt xem:</span> <strong title={`${views.toLocaleString("vi-VN")} lượt xem`}>{formatViews(views)}</strong></p><p><span className="text-primary">Tổng chương:</span> <strong>{story.chapters.length.toLocaleString("vi-VN")} chương</strong></p><p><span className="text-primary">Cập nhật:</span> {dateFormat.format(new Date(story.updated_at))}</p>{story.lock_from_chapter !== null && <p><span className="text-primary">Chương trả phí:</span> {story.lock_from_chapter > 1 ? `từ chương ${story.lock_from_chapter}` : "tất cả"}, {formatCoins(story.lock_price_coins)}/chương</p>}</div>
+            <div><p><span className="text-primary">Trạng thái:</span> <strong className="rounded bg-highlight px-2 py-1 text-sm text-highlight-foreground">{story.status}</strong></p>{views > 0 && <p><span className="text-primary">Lượt xem:</span> <strong title={`${views.toLocaleString("vi-VN")} lượt xem`}>{formatViews(views)}</strong></p>}<p><span className="text-primary">Tổng chương:</span> <strong>{story.chapters.length.toLocaleString("vi-VN")} chương</strong></p><p><span className="text-primary">Cập nhật:</span> {dateFormat.format(new Date(story.updated_at))}</p>{story.lock_from_chapter !== null && <p><span className="text-primary">Chương trả phí:</span> {story.lock_from_chapter > 1 ? `từ chương ${story.lock_from_chapter}` : "tất cả"}, {formatCoins(story.lock_price_coins)}/chương</p>}</div>
           </div>
           <div className="flex flex-wrap gap-3">
             {first && <Button className="bg-primary hover:bg-primary/90" nativeButton={false} render={<Link href={`/truyen/${story.slug}/chuong/${first.chapter_number}`} />}><BookOpen className="mr-2 size-4" />Đọc từ đầu</Button>}

@@ -6,6 +6,16 @@
 export const HOT_MIN_VIEWS_7D = 100;
 export const HOT_TOP = 5;
 
+// Public pages only show a view count once a story reaches this many real views (a new site does not look empty,
+// and no number is ever inflated). Admin pages always show the exact count.
+export const PUBLIC_VIEWS_MIN = 1000;
+
+// The count to show readers, or 0 (= hidden) below the threshold. Apply on the server so small exact numbers
+// never reach the page.
+export function publicViews(total: number) {
+  return total >= PUBLIC_VIEWS_MIN ? total : 0;
+}
+
 export type ViewStats = { total_views: number; views_7d: number; hot_pinned: boolean };
 
 export function hotStoryIds(stats: Map<string, ViewStats>) {

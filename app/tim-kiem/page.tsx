@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { maskForReaders } from "@/lib/moderation";
 import { searchHref, searchStories, sortOptions, type SearchSort, type SearchState } from "@/lib/search";
 import { getGenreCatalog, getViewStats, listStories } from "@/lib/stories";
-import { formatViews } from "@/lib/views";
+import { formatViews, publicViews } from "@/lib/views";
 
 const PAGE_SIZE = 20;
 const statuses = ["Đang ra", "Hoàn thành", "Tạm dừng"];
@@ -54,7 +54,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/tim-kiem"
           <div className="min-w-0 pr-2"><StatusBadge status={story.status} /></div>
           <span className="truncate text-right font-semibold tabular-nums text-primary">{story.chapter_count}</span>
         
-          <span className="hidden truncate text-right tabular-nums text-muted-foreground sm:block" title={`${story.views.toLocaleString("vi-VN")} lượt xem`}>{formatViews(story.views)}</span>
+          <span className="hidden truncate text-right tabular-nums text-muted-foreground sm:block" title={publicViews(story.views) ? `${story.views.toLocaleString("vi-VN")} lượt xem` : undefined}>{publicViews(story.views) ? formatViews(story.views) : ""}</span>
         </div>)}
         {pageResults.length === 0 && <p className="px-5 py-10 text-center text-sm text-muted-foreground">Không tìm thấy truyện phù hợp. Thử bỏ bớt thể loại hoặc chọn “Có ít nhất một thể loại”.</p>}
       </Card>

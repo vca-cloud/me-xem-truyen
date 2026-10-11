@@ -124,16 +124,40 @@ export function chapterNumberFromName(name: string) {
   return match ? Number(match[1]) : null;
 }
 
+// Bracketed tags around a file or folder name are not part of the title: "[1 - 10] Tên", "[On Going] Tên",
+// "Tên (Full)". A numeric range tag gives the file's position ("[11 - 20]" comes after "[1 - 10]").
+export function stripNameTags(raw: string) {
+  let title = raw.normalize("NFC").trim();
+  let order: number | null = null;
+  const tag = /^\s*[\[(【]([^\])】]{1,40})[\])】]\s*|\s*[\[(【]([^\])】]{1,40})[\])】]\s*$/u;
+  for (let guard = 0; guard < 6; guard += 1) {
+    const match = title.match(tag);
+    if (!match) break;
+    const inner = (match[1] ?? match[2]).trim();
+    const range = inner.match(/^(\d{1,5})(?:\s*[-–—~]\s*\d{1,5})?$/);
+    if (range && order === null) order = Number(range[1]);
+    title = (title.slice(0, match.index) + title.slice(match.index! + match[0].length)).trim();
+  }
+  return { title: title || raw.trim(), order };
+}
+
 // Which story a file belongs to when many files are uploaded together:
-// - inside a folder → the folder name ("Thủ khoa xuyên sách/Chương 1.md");
+// - inside a folder → the folder name ("Thủ khoa xuyên sách/Chương 1.md"), or the file's fuller title when it starts with it;
 // - "Tên truyện - Quyển 2.docx" / "… Tập 3" / "… Phần 1" / "… Chương 5" → "Tên truyện", ordered by that number;
 // - otherwise the file name itself is the story title.
+// Bracketed tags ("[1 - 10]", "[On Going]") are removed; a numeric range orders the files.
 export function fileStoryInfo(name: string, path = "") {
   const parts = path.normalize("NFC").split("/").filter(Boolean);
-  const base = name.normalize("NFC").replace(/\.[^.]+$/, "").trim();
+  const tagged = stripNameTags(name.normalize("NFC").replace(/\.[^.]+$/, ""));
+  const base = tagged.title;
   const suffix = base.match(/^(.*?)\s*[-–—_:,]?\s*(?<![\p{L}\p{N}])(?:quyển|quyen|tập|tap|phần|phan|chương|chuong|volume|vol|part)\s*\.?\s*0*(\d{1,5}|[ivxlcdm]{1,8})\s*$/iu);
-  const order = suffix ? (/^\d+$/.test(suffix[2]) ? Number(suffix[2]) : romanToNumber(suffix[2]) ?? 0) : chapterNumberFromName(name) ?? 0;
-  if (parts.length >= 2) return { title: parts[parts.length - 2].trim(), order };
-  if (suffix && suffix[1].trim()) return { title: suffix[1].replace(/[-–—_:,\s]+$/, "").trim(), order };
-  return { title: chapterNumberFromName(name) !== null && /^(chương|chuong|chapter|\d)/iu.test(base) ? "" : base, order };
+  const order = tagged.order ?? (suffix ? (/^\d+$/.test(suffix[2]) ? Number(suffix[2]) : romanToNumber(suffix[2]) ?? 0) : chapterNumberFromName(name) ?? 0);
+  const fromName = suffix && suffix[1].trim() ? suffix[1].replace(/[-–—_:,\s]+$/, "").trim() : chapterNumberFromName(base) !== null && /^(chương|chuong|chapter|\d)/iu.test(base) ? "" : base;
+  if (parts.length >= 2) {
+    // In a folder: the folder is the story, unless the file name carries the fuller title
+    // (folder "[On Going] Quyền Thần", file "[1 - 10] Quyền Thần Là Người Trong Lòng Ta").
+    const folder = stripNameTags(parts[parts.length - 2]).title;
+    return { title: fromName && fromName.toLocaleLowerCase("vi").startsWith(folder.toLocaleLowerCase("vi")) ? fromName : folder, order };
+  }
+  return { title: fromName, order };
 }

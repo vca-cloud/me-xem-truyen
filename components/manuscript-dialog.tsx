@@ -32,7 +32,8 @@ const NEW = "new";
 const SPLIT = "__split__";
 const statuses = ["Đang ra", "Hoàn thành", "Tạm dừng"];
 const extensionOf = (name: string) => name.toLowerCase().split(".").pop() ?? "";
-const accepted = new Set(["docx", "md", "markdown", "txt"]);
+const accepted = new Set(["docx", "pages", "md", "markdown", "txt"]);
+const ACCEPT = ".docx,.pages,.md,.markdown,.txt";
 
 // .txt may be UTF-8 (with or without BOM), UTF-16, or an old Windows Vietnamese code page.
 function decodeText(buffer: ArrayBuffer) {
@@ -50,6 +51,15 @@ async function docxBlocks(buffer: ArrayBuffer): Promise<ManuscriptBlock[]> {
   return [...doc.body.querySelectorAll("h1, h2, h3, h4, h5, h6, p, li")]
     .filter((element) => !(element.tagName === "P" && element.closest("li")))
     .map((element) => /^H\d$/.test(element.tagName) ? { text: element.textContent ?? "", heading: Number(element.tagName[1]) } : { text: element.textContent ?? "" });
+}
+
+// Apple Pages (.pages): unzip and read the body text from Index/Document.iwa (lib/pages.ts).
+async function pagesBlocks(buffer: ArrayBuffer): Promise<ManuscriptBlock[]> {
+  const [{ default: JSZip }, { pagesParagraphs }] = await Promise.all([import("jszip"), import("@/lib/pages")]);
+  const zip = await JSZip.loadAsync(buffer).catch(() => null);
+  const document = zip?.file("Index/Document.iwa");
+  if (!document) throw new Error("pages-format");
+  return pagesParagraphs(await document.async("uint8array")).map((text) => ({ text }));
 }
 
 // Files and folders dropped on the dialog (folders are walked recursively, keeping "Folder/sub/file" paths).
@@ -181,7 +191,7 @@ export function ManuscriptDialog({ open, onOpenChange, mode, stories = [], story
   async function readFiles(list: { file: File; path: string }[]) {
     const usable = list.filter(({ file }) => accepted.has(extensionOf(file.name)) && !file.name.startsWith("."));
     const skipped = list.length - usable.length;
-    if (!usable.length) return toast.error("Không có file .docx, .md hoặc .txt nào. File .doc / .pages: lưu lại thành .docx trước.");
+    if (!usable.length) return toast.error("Không có file .docx, .pages, .md hoặc .txt nào. File Word cũ (.doc): lưu lại thành .docx trước.");
     if (files.length + usable.length > MAX_FILES) return toast.error(`Tối đa ${MAX_FILES} file mỗi lần.`);
     const bytes = usable.reduce((sum, { file }) => sum + file.size, 0);
     if (totalBytes.current + bytes > MAX_TOTAL_BYTES) return toast.error("Tổng dung lượng tối đa 100 MB mỗi lần.");
@@ -192,16 +202,16 @@ export function ManuscriptDialog({ open, onOpenChange, mode, stories = [], story
       try {
         const buffer = await file.arrayBuffer();
         const extension = extensionOf(file.name);
-        parsed.push({ name: file.name, path, blocks: extension === "docx" ? await docxBlocks(buffer) : extension === "txt" ? textBlocks(decodeText(buffer)) : markdownBlocks(decodeText(buffer)) });
-      } catch {
-        failed.push(file.name);
+        parsed.push({ name: file.name, path, blocks: extension === "docx" ? await docxBlocks(buffer) : extension === "pages" ? await pagesBlocks(buffer) : extension === "txt" ? textBlocks(decodeText(buffer)) : markdownBlocks(decodeText(buffer)) });
+      } catch (error) {
+        failed.push(error instanceof Error && error.message === "pages-format" ? `${file.name} (bản Pages cũ: mở bằng Pages rồi lưu lại)` : file.name);
       }
     }
     totalBytes.current += bytes;
     addParsed(parsed);
     setReading(false);
     if (failed.length) toast.error(`Không đọc được: ${failed.join(", ")}`);
-    if (skipped) toast.message(`Bỏ qua ${skipped} file không phải .docx/.md/.txt.`);
+    if (skipped) toast.message(`Bỏ qua ${skipped} file không phải .docx/.pages/.md/.txt.`);
   }
 
   async function readLink() {
@@ -301,7 +311,7 @@ export function ManuscriptDialog({ open, onOpenChange, mode, stories = [], story
       onDrop={async (event) => { if (results || busy) return; event.preventDefault(); setDragging(false); await readFiles(await droppedFiles(event.dataTransfer.items)); }}>
       <DialogHeader>
         <DialogTitle>Tải bản thảo{story ? `: ${story.title}` : ""}</DialogTitle>
-        <DialogDescription>Một hoặc nhiều file (.docx, Google Docs, .md, .txt), có thể kéo thả cả thư mục. Hệ thống tự tìm dòng “Chương N: Tên chương”, {mode === "admin" ? "gom file theo truyện (thư mục, hoặc tên “Tên truyện - Quyển N”), " : "gộp tất cả vào truyện này, "}tách từng chương thành file .txt và lưu lên Cloudflare theo thư mục tên truyện.</DialogDescription>
+        <DialogDescription>Một hoặc nhiều file (.docx, .pages, Google Docs, .md, .txt), có thể kéo thả cả thư mục. Hệ thống tự tìm dòng “Chương N: Tên chương”, {mode === "admin" ? "gom file theo truyện (thư mục, hoặc tên “Tên truyện - Quyển N”), " : "gộp tất cả vào truyện này, "}tách từng chương thành file .txt và lưu lên Cloudflare theo thư mục tên truyện.</DialogDescription>
       </DialogHeader>
 
       {results ? <div className="space-y-3">
@@ -319,13 +329,13 @@ export function ManuscriptDialog({ open, onOpenChange, mode, stories = [], story
       </div> : <div className="space-y-4">
         <Tabs value={source} onValueChange={(value) => setSource(value as "file" | "link")}><TabsList className="w-full"><TabsTrigger value="file"><FileText />Tải file / thư mục</TabsTrigger><TabsTrigger value="link"><Link2 />Link Google Docs</TabsTrigger></TabsList></Tabs>
         {source === "file" ? <div className={`rounded-lg border border-dashed p-5 text-center transition-colors ${dragging ? "border-highlight bg-highlight/5" : ""}`}>
-          <input ref={fileInput} type="file" multiple accept=".docx,.md,.markdown,.txt" className="hidden" onChange={(event) => { void readFiles([...(event.target.files ?? [])].map((file) => ({ file, path: "" }))); event.target.value = ""; }} />
+          <input ref={fileInput} type="file" multiple accept={ACCEPT} className="hidden" onChange={(event) => { void readFiles([...(event.target.files ?? [])].map((file) => ({ file, path: "" }))); event.target.value = ""; }} />
           <input ref={folderInput} type="file" multiple className="hidden" {...{ webkitdirectory: "" }} onChange={(event) => { void readFiles([...(event.target.files ?? [])].map((file) => ({ file, path: file.webkitRelativePath }))); event.target.value = ""; }} />
           <div className="flex flex-wrap justify-center gap-2">
             <Button type="button" disabled={busy} onClick={() => fileInput.current?.click()}><Upload />{reading ? "Đang đọc file..." : files.length ? "Thêm file" : "Chọn file"}</Button>
             <Button type="button" variant="outline" disabled={busy} onClick={() => folderInput.current?.click()}><FolderOpen />Chọn thư mục</Button>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">Hoặc kéo thả file / thư mục vào đây. .docx, .md, .txt — tối đa {MAX_FILES} file, 100 MB mỗi lần. Google Docs: Tệp → Tải xuống → Microsoft Word (.docx).</p>
+          <p className="mt-2 text-xs text-muted-foreground">Hoặc kéo thả file / thư mục vào đây. .docx, .pages, .md, .txt — tối đa {MAX_FILES} file, 100 MB mỗi lần. Google Docs: Tệp → Tải xuống → Microsoft Word (.docx).</p>
         </div> : <Field>
           <FieldLabel htmlFor="gdoc-link">Link Google Docs</FieldLabel>
           <div className="flex gap-2"><Input id="gdoc-link" value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://docs.google.com/document/d/…" /><Button type="button" disabled={busy || !link.trim()} onClick={readLink}>{reading ? "Đang lấy..." : "Lấy nội dung"}</Button></div>

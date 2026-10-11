@@ -4,6 +4,7 @@ export const affiliatePlacements = [
   { value: "dau-chuong", label: "Đầu chương" },
   { value: "giua-chuong", label: "Giữa chương" },
   { value: "cuoi-chuong", label: "Cuối chương" },
+  { value: "popup", label: "Pop-up mở chương" },
   { value: "trang-truyen", label: "Trang giới thiệu truyện" },
   { value: "trang-chu", label: "Trang chủ" },
   { value: "sidebar", label: "Thanh bên" },

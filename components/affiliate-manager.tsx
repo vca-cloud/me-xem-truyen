@@ -16,10 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { affiliatePlacements, formatNumber, formatVnd, placementLabel, revenueImportTemplates, type RevenueDashboard, type RevenueImportType } from "@/lib/analytics-shared";
 
-type AffiliateLink = RevenueDashboard["links"][number];
-type Draft = { id?: string; name: string; target_url: string; placement: string; sub_id: string; story_slug: string };
+type AffiliateLink = RevenueDashboard["links"][number] & { image_url?: string | null; headline?: string | null };
+type Draft = { id?: string; name: string; target_url: string; placement: string; sub_id: string; story_slug: string; image_url: string; headline: string };
 
-const blank: Draft = { name: "", target_url: "", placement: "cuoi-chuong", sub_id: "", story_slug: "" };
+const blank: Draft = { name: "", target_url: "", placement: "cuoi-chuong", sub_id: "", story_slug: "", image_url: "", headline: "" };
 const placementItems = affiliatePlacements.map((item) => ({ value: item.value, label: item.label }));
 
 function downloadTemplate(type: RevenueImportType) {
@@ -117,7 +117,7 @@ export function AffiliateManager({ links }: { links: AffiliateLink[] }) {
           <TableCell><StatusBadge>{link.active ? "Đang bật" : "Đã tắt"}</StatusBadge></TableCell>
           <TableCell className="pr-5"><div className="flex justify-end gap-1">
             <Button variant="ghost" size="icon-sm" aria-label="Sao chép link theo dõi" onClick={() => copyTrackingUrl(link)}><Copy /></Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Chỉnh sửa" onClick={() => { setFormError(null); setDraft({ id: link.id, name: link.name, target_url: link.target_url, placement: link.placement, sub_id: link.sub_id ?? "", story_slug: link.story_slug ?? "" }); }}><Pencil /></Button>
+            <Button variant="ghost" size="icon-sm" aria-label="Chỉnh sửa" onClick={() => { setFormError(null); setDraft({ id: link.id, name: link.name, target_url: link.target_url, placement: link.placement, sub_id: link.sub_id ?? "", story_slug: link.story_slug ?? "", image_url: link.image_url ?? "", headline: link.headline ?? "" }); }}><Pencil /></Button>
             <Button variant="ghost" size="icon-sm" aria-label={link.active ? "Tắt link" : "Bật link"} disabled={pending} onClick={() => toggle(link)}><Power /></Button>
             <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label="Xóa" disabled={pending} onClick={() => remove(link)}><Trash2 /></Button>
           </div></TableCell>
@@ -153,6 +153,11 @@ export function AffiliateManager({ links }: { links: AffiliateLink[] }) {
             </div>
             <FieldDescription>Sub ID phải trùng với Sub ID bạn đặt khi tạo link trên Shopee Affiliate để đơn hàng import được gán đúng link.</FieldDescription>
             <Field><FieldLabel htmlFor="aff-story">Chỉ dùng cho truyện (slug, tùy chọn)</FieldLabel><Input id="aff-story" value={draft.story_slug} onChange={(event) => setDraft({ ...draft, story_slug: event.target.value })} placeholder="thien-dao-do-thu-quan" /></Field>
+            {draft.placement === "popup" && <div className="space-y-4 rounded-lg border border-highlight/40 bg-highlight/5 p-3">
+              <p className="text-sm font-medium">Hiển thị trong pop-up mở chương</p>
+              <Field><FieldLabel htmlFor="aff-image">Link ảnh sản phẩm (tùy chọn)</FieldLabel><Input id="aff-image" type="url" value={draft.image_url} onChange={(event) => setDraft({ ...draft, image_url: event.target.value })} placeholder="https://…jpg" /><FieldDescription>Trên Shopee: bấm giữ ảnh sản phẩm → Sao chép địa chỉ hình ảnh, rồi dán vào đây.</FieldDescription></Field>
+              <Field><FieldLabel htmlFor="aff-headline">Câu giới thiệu (tùy chọn)</FieldLabel><Input id="aff-headline" maxLength={160} value={draft.headline} onChange={(event) => setDraft({ ...draft, headline: event.target.value })} placeholder="Ví dụ: Deal sách hay giảm đến 50% hôm nay" /></Field>
+            </div>}
           </FieldGroup>
           {formError && <Alert variant="destructive"><AlertDescription>{formError}</AlertDescription></Alert>}
           <DialogFooter><Button type="button" variant="outline" onClick={() => setDraft(null)}>Hủy</Button><Button type="submit" disabled={pending}>{pending ? "Đang lưu..." : "Lưu"}</Button></DialogFooter>

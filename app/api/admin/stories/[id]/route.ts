@@ -3,6 +3,7 @@ import { guardAdminApi, roleAccess } from "@/lib/auth";
 import { validTextUrl } from "@/lib/story-data";
 import { parseGenreNames, setStoryGenres } from "@/lib/stories";
 import { parseLockSettings } from "@/lib/coins";
+import { parseAffiliateSettings } from "@/lib/affiliate-settings";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient, serviceRoleReady } from "@/lib/supabase/admin";
 import { deleteCoverIfUnused } from "@/lib/cover-storage";
@@ -36,6 +37,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
 
     if (typeof body.ads_disabled === "boolean") update.ads_disabled = body.ads_disabled;
     if (typeof body.hot_pinned === "boolean") update.hot_pinned = body.hot_pinned;
+    const affiliate = parseAffiliateSettings(body);
+    if (affiliate.error) return NextResponse.json({ error: affiliate.error }, { status: 400 });
+    Object.assign(update, affiliate.value);
     if ("lock_from_chapter" in body || "lock_price_coins" in body) {
       const lock = parseLockSettings(body.lock_from_chapter, body.lock_price_coins);
       if (lock.error) return NextResponse.json({ error: lock.error }, { status: 400 });

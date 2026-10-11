@@ -13,7 +13,8 @@ import { splitChapterForAds } from "@/lib/ads";
 import { fetchChapterText, stripChapterHeading } from "@/lib/chapter-content";
 import { maskForReaders } from "@/lib/moderation";
 import { chapterPrice } from "@/lib/coins";
-import { getChapterAccess, getChapterTextUrl, getReaderStory } from "@/lib/stories";
+import { getChapterAccess, getChapterTextUrl, getReaderStory, getStoryPopup } from "@/lib/stories";
+import { ShopeeGate } from "@/components/shopee-gate";
 
 export async function generateMetadata({ params }: PageProps<"/truyen/[slug]/chuong/[chapterNumber]">): Promise<Metadata> {
   const { slug, chapterNumber } = await params;
@@ -60,6 +61,8 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
   }
 
   const showContent = !error && !locked;
+  // Shopee pop-up: only on readable free chapters of stories with “Bật Affiliate”.
+  const popup = showContent && access.price === 0 ? await getStoryPopup(story.id) : null;
   // Ads need readable content, a story without the ads-off flag and a chapter whose ads are on (moderation).
   const showAds = showContent && !story.ads_disabled && chapter.ads_enabled === true;
   // The text is always shown when readable; mid-chapter ad slots are only inserted when ads are allowed.
@@ -67,7 +70,7 @@ export default async function ChapterPage({ params }: PageProps<"/truyen/[slug]/
   const navItems = story.chapters.map((item) => ({ chapter_number: item.chapter_number, title: item.title, locked: chapterPrice(story, item.chapter_number) > 0 }));
   const navigation = <ChapterNav storySlug={story.slug} chapters={navItems} current={chapter.chapter_number} />;
 
-  return <main className="min-h-screen bg-background px-3 py-6 text-foreground sm:px-4 sm:py-8"><ViewTracker storySlug={story.slug} chapterNumber={chapter.chapter_number} />{showAds && <AdSenseScript />}<div className="mx-auto max-w-4xl">
+  return <main className="min-h-screen bg-background px-3 py-6 text-foreground sm:px-4 sm:py-8"><ViewTracker storySlug={story.slug} chapterNumber={chapter.chapter_number} />{popup && <ShopeeGate popup={popup} storyId={story.id} storySlug={story.slug} chapterNumber={chapter.chapter_number} chapterTitle={chapter.title} />}{showAds && <AdSenseScript />}<div className="mx-auto max-w-4xl">
     <header className="mb-6 flex items-center justify-between gap-2 sm:gap-3"><Logo className="text-3xl" /><div className="flex min-w-0 items-center gap-3"><Link href={`/truyen/${story.slug}`} className="hidden min-w-0 truncate text-sm text-primary hover:underline sm:block">{story.title}</Link><AccountMenu tone="light" /><ThemeToggle className="bg-background" /></div></header>
     <div className="mb-6">{navigation}</div>
     <Card className="border-0 bg-card px-4 py-6 shadow-sm sm:p-10">

@@ -148,3 +148,11 @@ export const getViewStats = cache(async (): Promise<{ stats: Map<string, ViewSta
   const stats = new Map((data as ({ story_id: string } & ViewStats)[]).map(({ story_id, ...value }) => [story_id, value]));
   return { stats, hot: hotStoryIds(stats) };
 });
+
+// Shopee pop-up for a story's free chapters (migration 0012); null when off, no link, or before the migration.
+export async function getStoryPopup(storyId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("story_affiliate_popup", { p_story_id: storyId });
+  const row = !error && Array.isArray(data) ? (data[0] as { link_id: string; name: string; image_url: string | null; headline: string | null; gate_minutes: number } | undefined) : undefined;
+  return row ? { linkId: row.link_id, name: row.name, imageUrl: row.image_url, headline: row.headline, gateMinutes: row.gate_minutes } : null;
+}

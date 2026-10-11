@@ -142,6 +142,7 @@ Chạy theo thứ tự trong Supabase SQL Editor:
 
 9. `0009_views.sql` — `stories.hot_pinned`; `story_view_stats()` (public: tổng + 7 ngày + hot_pinned theo truyện, chỉ truyện đang công khai); `admin_view_stats(p_days)` (admin: tổng, người đọc, hôm nay/7/30 ngày, chuỗi theo ngày, theo truyện + sparkline 14 ngày).
 
+11b. `0012_affiliate_popup.sql` — `stories.affiliate_enabled/affiliate_gate_minutes/affiliate_link_id`, `affiliate_links.image_url/headline`, RPC `story_affiliate_popup`.
 10. `0010_view_window.sql` — `track_view` tính lại lượt xem cùng người/cùng trang sau 15 phút (trước 30); giữ giới hạn 300 lượt/giờ/IP.
 
 11. `0011_moderation_rescan.sql` — `moderation_state` (chỉ server đọc), trigger cập nhật thời điểm đổi từ điển, index `chapters.moderated_at`.
@@ -171,7 +172,8 @@ Tại `/admin/truyen`: **Tải file mẫu** (`mau-import-truyen-nhieu-chuong.csv
 
 - `/admin/affiliate`: thêm/sửa/bật-tắt/xóa link, sao chép link theo dõi `/go/…`. Vị trí: đầu/giữa/cuối chương, trang truyện, trang chủ, thanh bên, khác.
 - Đơn hàng nhập bằng CSV `order_id,sub_id,order_amount,commission,status,ordered_at` (upsert theo `order_id`). Đơn gán vào link qua `sub_id`, nên Sub ID khi tạo link trên Shopee phải trùng Sub ID trong admin.
-- Chưa gắn link Shopee lên trang public — chỉ làm khi chủ dự án yêu cầu.
+- **Pop-up Shopee theo truyện** (migration `0012`, chủ dự án yêu cầu 11/10/2026 sau khi được báo rủi ro): `/admin/truyen` có cột **Kiếm tiền** (công tắc AdSense = `!ads_disabled`, Shopee = `affiliate_enabled`, `components/story-flag-switch.tsx`) và phần “Kiếm tiền” trong form (link riêng `affiliate_link_id` hoặc tự động theo link vị trí `popup`; tần suất `affiliate_gate_minutes` 0/30/120/1440 — `lib/affiliate-settings.ts`). Chương **miễn phí** đọc được của truyện bật Shopee hiện `components/shopee-gate.tsx`: nội dung vẫn render phía sau (làm mờ, không cloaking — Google thấy cùng pop-up), nút “Mở Shopee & đọc tiếp” mở `/go/<id>?s=&c=` ở tab mới rồi mở khóa; trạng thái lưu `localStorage` (`mxt_shopee:<storyId>[:<chương>]`). Có dòng công khai hoa hồng. RPC công khai `story_affiliate_popup(story_id)` chỉ trả id/tên/ảnh/câu giới thiệu, không lộ link Shopee. Link affiliate có thêm `image_url`, `headline` (form ở `/admin/affiliate`, hiện khi vị trí “Pop-up mở chương”).
+- Rủi ro đã báo chủ dự án: điều khoản Shopee Affiliate (click bắt buộc), Better Ads/AdSense (pop-up che nội dung — form cảnh báo khi bật cả AdSense và Shopee), xếp hạng Google trên mobile, tỷ lệ thoát.
 
 ### AdSense
 
@@ -193,7 +195,7 @@ Tại `/admin/truyen`: **Tải file mẫu** (`mau-import-truyen-nhieu-chuong.csv
 
 ### Quy tắc chính sách bắt buộc
 
-- Không đặt quảng cáo sát nút chương trước/sau, menu, breadcrumb; không popup/interstitial tự làm; không sticky tự làm chiếm > 30% màn hình mobile.
+- Không đặt quảng cáo sát nút chương trước/sau, menu, breadcrumb; không popup/interstitial tự làm (ngoại lệ do chủ dự án chọn: pop-up Shopee theo từng truyện, mục Shopee Affiliate); không sticky tự làm chiếm > 30% màn hình mobile.
 - Không làm “xem quảng cáo để mở khóa chương” bằng AdSense (chỉ dùng Offerwall/rewarded chính thức của Google hoặc hệ thống xu/VIP riêng).
 - Không hiển thị quảng cáo trên nội dung người lớn; Category Filter không thay thế được việc tắt quảng cáo.
 - Không tạo lượt xem/click giả; không hiển thị số liệu ảo.

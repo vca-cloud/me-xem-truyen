@@ -3,7 +3,7 @@ import "server-only";
 import { affiliatePlacements } from "@/lib/analytics-shared";
 import { validTextUrl } from "@/lib/story-data";
 
-export type AffiliateLinkInput = { name: string; target_url: string; placement: string; sub_id: string | null; story_slug: string | null; active?: boolean };
+export type AffiliateLinkInput = { name: string; target_url: string; placement: string; sub_id: string | null; story_slug: string | null; image_url?: string | null; headline?: string | null; active?: boolean };
 
 // Validates a partial or full affiliate link payload from an admin request.
 export function parseAffiliateLink(body: Record<string, unknown>, partial = false): { value: Partial<AffiliateLinkInput>; error: string | null } {
@@ -34,6 +34,17 @@ export function parseAffiliateLink(body: Record<string, unknown>, partial = fals
   if (storySlug !== undefined) {
     if (storySlug && !/^[a-z0-9-]{1,200}$/.test(storySlug)) return { value, error: "Slug truyện không hợp lệ." };
     value.story_slug = storySlug || null;
+  }
+  // Shown in the chapter pop-up (migration 0012): product picture and one short line.
+  const imageUrl = text("image_url");
+  if (imageUrl !== undefined) {
+    if (imageUrl && !validTextUrl(imageUrl)) return { value, error: "Link ảnh sản phẩm phải bắt đầu bằng http:// hoặc https://." };
+    value.image_url = imageUrl || null;
+  }
+  const headline = text("headline");
+  if (headline !== undefined) {
+    if (headline.length > 160) return { value, error: "Câu giới thiệu tối đa 160 ký tự." };
+    value.headline = headline || null;
   }
   if (typeof body.active === "boolean") value.active = body.active;
   return { value, error: null };

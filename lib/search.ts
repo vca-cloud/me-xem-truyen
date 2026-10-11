@@ -5,7 +5,25 @@ export type SearchableStory = { slug: string; title: string; author: string; gen
 export type SearchSort = "cap-nhat" | "moi-dang" | "luot-xem" | "nhieu-chuong" | "ten";
 export type GenreMode = "tat-ca" | "mot-trong";
 // Filter state of /tim-kiem; genres are genre slugs.
-export type SearchState = { q: string; genres: string[]; mode: GenreMode; status: string; sort: SearchSort };
+export type SearchState = { q: string; genres: string[]; mode: GenreMode; status: string; sort: SearchSort; length: string };
+
+// Story length filter (number of chapters): "duoi-N" = fewer than N, "tu-500" = 500 or more.
+export const lengthOptions = [
+  { value: "", label: "Mọi độ dài" },
+  { value: "duoi-10", label: "Dưới 10 chương" },
+  { value: "duoi-50", label: "Dưới 50 chương" },
+  { value: "duoi-100", label: "Dưới 100 chương" },
+  { value: "duoi-500", label: "Dưới 500 chương" },
+  { value: "tu-500", label: "Từ 500 chương trở lên" },
+] as const;
+
+export function matchesLength(chapters: number, length: string) {
+  const under = length.match(/^duoi-(\d+)$/);
+  if (under) return chapters < Number(under[1]);
+  const from = length.match(/^tu-(\d+)$/);
+  if (from) return chapters >= Number(from[1]);
+  return true;
+}
 
 export const sortOptions: { value: SearchSort; label: string }[] = [
   { value: "cap-nhat", label: "Mới cập nhật" },
@@ -27,11 +45,12 @@ export function matchesQuery(story: SearchableStory, query: string) {
   return words.every((word) => haystack.includes(word));
 }
 
-export function searchStories<T extends SearchableStory>(stories: T[], options: { q?: string; genres?: string[]; mode?: GenreMode; status?: string; sort?: SearchSort }) {
+export function searchStories<T extends SearchableStory>(stories: T[], options: { q?: string; genres?: string[]; mode?: GenreMode; status?: string; sort?: SearchSort; length?: string }) {
   const wanted = (options.genres ?? []).map(normalizeSearch);
   const result = stories.filter((story) => {
     if (options.q && !matchesQuery(story, options.q)) return false;
     if (options.status && story.status !== options.status) return false;
+    if (options.length && !matchesLength(story.chapter_count, options.length)) return false;
     if (wanted.length) {
       const has = new Set(story.genres.map(normalizeSearch));
       if (options.mode === "mot-trong" ? !wanted.some((genre) => has.has(genre)) : !wanted.every((genre) => has.has(genre))) return false;
@@ -53,6 +72,7 @@ export function searchHref(state: SearchState, page = 1) {
   if (state.genres.length) params.set("the_loai", state.genres.join(","));
   if (state.genres.length > 1 && state.mode !== "tat-ca") params.set("che_do", state.mode);
   if (state.status) params.set("trang_thai", state.status);
+  if (state.length) params.set("so_chuong", state.length);
   if (state.sort !== "cap-nhat") params.set("sap_xep", state.sort);
   if (page > 1) params.set("trang", String(page));
   const query = params.toString();

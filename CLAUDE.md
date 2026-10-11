@@ -41,7 +41,7 @@ public/               # Static assets
 - `/truyen/[slug]` — giới thiệu truyện và danh sách chương (`?thu_tu=moi` để xếp mới → cũ); slug không tồn tại trả 404.
 - `/truyen/[slug]/chuong/[chapterNumber]` — đọc chương; nội dung lấy từ `text_url` (file `.txt` public trên R2).
 - `/dang-nhap`, `/dang-ky` — email/password hoặc Google (Turnstile nếu có `NEXT_PUBLIC_TURNSTILE_SITE_KEY`); `?next=` qua `safeInternalPath`.
-- `/tim-kiem` — tìm nâng cao: `q` (tên/tác giả/thể loại, không phân biệt dấu), `the_loai` (slug, phân tách dấu phẩy), `che_do=mot-trong` (mặc định có tất cả), `trang_thai`, `sap_xep` (`cap-nhat`/`moi-dang`/`nhieu-chuong`/`ten`), `trang`; noindex. Logic ở `lib/search.ts`. Header dùng chung `components/site-header.tsx` (menu thể loại lấy từ bảng `genres` qua `getGenreCatalog()`, ô tìm kiếm → `/tim-kiem`) cho trang chủ, trang truyện, trang tìm kiếm.
+- `/tim-kiem` — tìm nâng cao: `q` (tên/tác giả/thể loại, không phân biệt dấu), `the_loai` (slug, phân tách dấu phẩy), `che_do=mot-trong` (mặc định có tất cả), `trang_thai`, `so_chuong` (`duoi-10`/`duoi-50`/`duoi-100`/`duoi-500`/`tu-500`, `lengthOptions`/`matchesLength`), `sap_xep` (`cap-nhat`/`moi-dang`/`nhieu-chuong`/`ten`), `trang`; noindex. Logic ở `lib/search.ts`. Header dùng chung `components/site-header.tsx` (menu thể loại lấy từ bảng `genres` qua `getGenreCatalog()`, ô tìm kiếm → `/tim-kiem`) cho trang chủ, trang truyện, trang tìm kiếm.
 - `/tac-gia` — khu vực tác giả (đăng ký làm tác giả, truyện của tôi, rút Xu), `/tac-gia/truyen/[id]` — viết/sửa chương; `/dieu-khoan-tac-gia` — điều khoản tác giả.
 - `/tai-khoan` — ví Xu thành viên. `/gioi-thieu`, `/dieu-khoan`, `/chinh-sach-bao-mat`, `/lien-he` — trang thông tin (thông tin công ty lấy từ `lib/site.ts` / `NEXT_PUBLIC_COMPANY_*`).
 - `/sitemap.xml` (truyện + chương miễn phí), `/robots.txt` (chặn admin/api/go/tai-khoan/tac-gia).
@@ -74,7 +74,7 @@ API tác giả (`guardAuthorApi()`, ghi bằng service role sau khi kiểm sessi
 - Section **Gợi ý truyện** ở đầu (4 ô ảnh bìa): truyện admin chọn (`stories.featured`, mới chọn nhất trước — công tắc “Gợi ý” ở cột Tag `/admin/truyen` hoặc ô trong form), thiếu thì lấp bằng truyện nhiều lượt xem thật 7 ngày, rồi truyện mới cập nhật; 4 truyện được chọn hiển thị theo ngày cập nhật, mới nhất trước (`app/page.tsx`).
 - Section truyện mới đăng (ô ảnh bìa 4:5, nhãn NEW trong 7 ngày, FULL khi hoàn thành), mới cập nhật (bảng), truyện hoàn thành; ẩn section trống.
 - Tag trên ảnh bìa: HOT (cam `highlight`, icon lửa), NEW (#2D74A8, 7 ngày), FULL (#154B95, hoàn thành) — `StoryTag`; số lượt xem thật góc phải ảnh bìa; bảng có cột Lượt xem (từ `sm`) và đủ tag HOT/NEW/FULL nhỏ cạnh tên (trang chủ, tìm kiếm). Quy tắc tag dùng chung `storyTags()` trong `lib/views.ts`.
-- Danh sách truyện lọc theo thể loại trong admin, phân trang 10 truyện/trang; cột Tình trạng; badge thể loại một dòng, truncate text.
+- Danh sách truyện lọc theo thể loại trong admin và theo số chương, phân trang 10 truyện/trang; cột Tình trạng; badge thể loại một dòng, truncate text.
 - Cover/tên truyện liên kết tới `/truyen/[slug]`.
 
 ### Trang chi tiết truyện

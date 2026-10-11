@@ -8,7 +8,7 @@ import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { maskForReaders } from "@/lib/moderation";
-import { searchHref, searchStories, sortOptions, type SearchSort, type SearchState } from "@/lib/search";
+import { lengthOptions, searchHref, searchStories, sortOptions, type SearchSort, type SearchState } from "@/lib/search";
 import { getGenreCatalog, getViewStats, listStories } from "@/lib/stories";
 import { formatViews, publicViews, storyTags } from "@/lib/views";
 
@@ -32,10 +32,11 @@ export default async function SearchPage({ searchParams }: PageProps<"/tim-kiem"
     mode: one(params.che_do) === "mot-trong" ? "mot-trong" : "tat-ca",
     status: statuses.includes(one(params.trang_thai)) ? one(params.trang_thai) : "",
     sort: sortOptions.some((option) => option.value === sort) ? sort : "cap-nhat",
+    length: lengthOptions.some((option) => option.value && option.value === one(params.so_chuong)) ? one(params.so_chuong) : "",
   };
   const genreNames = state.genres.map((slug) => catalog.find((genre) => genre.slug === slug)!.name);
   const stories = await Promise.all((rows ?? []).map(async (story) => ({ ...story, title: await maskForReaders(story.title), views: views.stats.get(story.id)?.total_views ?? 0, hot: views.hot.has(story.id) })));
-  const results = searchStories(stories, { q: state.q, genres: genreNames, mode: state.mode, status: state.status, sort: state.sort });
+  const results = searchStories(stories, { q: state.q, genres: genreNames, mode: state.mode, status: state.status, sort: state.sort, length: state.length });
   const pageCount = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const page = Math.min(Math.max(Number(one(params.trang)) || 1, 1), pageCount);
   const pageResults = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);

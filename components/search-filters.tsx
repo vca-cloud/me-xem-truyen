@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { searchHref, sortOptions, type GenreMode, type SearchSort, type SearchState } from "@/lib/search";
+import { lengthOptions, searchHref, sortOptions, type GenreMode, type SearchSort, type SearchState } from "@/lib/search";
 import { cn } from "@/lib/utils";
 
 const modeOptions = [{ value: "tat-ca", label: "Có tất cả thể loại đã chọn" }, { value: "mot-trong", label: "Có ít nhất một thể loại" }];
@@ -29,9 +29,10 @@ export function SearchFilters({ catalog, initial }: { catalog: HeaderGenre[]; in
 
   return <Card className="p-4 sm:p-5">
     <form onSubmit={apply} className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_12rem_12rem]">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_12rem_13rem_12rem]">
         <Field><FieldLabel htmlFor="s-q">Từ khóa</FieldLabel><Input id="s-q" value={state.q} onChange={(event) => update({ q: event.target.value })} placeholder="Tên truyện, tác giả, thể loại..." /></Field>
         <Field><FieldLabel>Trạng thái</FieldLabel><Select items={statusOptions} value={state.status || "all"} onValueChange={(value) => update({ status: !value || value === "all" ? "" : String(value) })}><SelectTrigger className="w-full" aria-label="Trạng thái"><SelectValue /></SelectTrigger><SelectContent>{statusOptions.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent></Select></Field>
+        <Field><FieldLabel>Số chương</FieldLabel><Select items={lengthOptions.map((option) => ({ value: option.value || "all", label: option.label }))} value={state.length || "all"} onValueChange={(value) => update({ length: !value || value === "all" ? "" : String(value) })}><SelectTrigger className="w-full" aria-label="Số chương"><SelectValue /></SelectTrigger><SelectContent>{lengthOptions.map((option) => <SelectItem key={option.value || "all"} value={option.value || "all"}>{option.label}</SelectItem>)}</SelectContent></Select></Field>
         <Field><FieldLabel>Sắp xếp</FieldLabel><Select items={sortOptions} value={state.sort} onValueChange={(value) => update({ sort: value as SearchSort })}><SelectTrigger className="w-full" aria-label="Sắp xếp"><SelectValue /></SelectTrigger><SelectContent>{sortOptions.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent></Select></Field>
       </div>
       <div className="space-y-2">
@@ -45,7 +46,7 @@ export function SearchFilters({ catalog, initial }: { catalog: HeaderGenre[]; in
         })}</div> : <p className="text-sm text-muted-foreground">Chưa có thể loại nào.</p>}
       </div>
       <div className="flex flex-wrap justify-end gap-2">
-        <Button type="button" variant="outline" onClick={() => { setState({ q: "", genres: [], mode: "tat-ca", status: "", sort: "cap-nhat" }); router.push("/tim-kiem"); }}><RotateCcw />Xóa bộ lọc</Button>
+        <Button type="button" variant="outline" onClick={() => { setState({ q: "", genres: [], mode: "tat-ca", status: "", sort: "cap-nhat", length: "" }); router.push("/tim-kiem"); }}><RotateCcw />Xóa bộ lọc</Button>
         <Button type="submit" className="bg-highlight text-highlight-foreground hover:bg-highlight/90"><Search />Tìm truyện</Button>
       </div>
     </form>

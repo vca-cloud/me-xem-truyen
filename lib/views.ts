@@ -4,6 +4,8 @@
 // A story is HOT when an admin pinned it, or automatically when it is among the HOT_TOP most viewed stories
 // of the last 7 days with at least HOT_MIN_VIEWS_7D views.
 export const HOT_MIN_VIEWS_7D = 100;
+// NEW tag: stories created in the last NEW_DAYS days.
+export const NEW_DAYS = 7;
 export const HOT_TOP = 5;
 
 // Public pages only show a view count once a story reaches this many real views (a new site does not look empty,

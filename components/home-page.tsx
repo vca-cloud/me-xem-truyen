@@ -1,7 +1,7 @@
 "use client";
 
 import { COVER_ASPECT_CLASS, coverImageProps } from "@/lib/cover";
-import { formatViews } from "@/lib/views";
+import { formatViews, NEW_DAYS } from "@/lib/views";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AdSenseScript, AdSlot } from "@/components/ads";
@@ -19,7 +19,6 @@ export type HomeStory = { slug: string; title: string; author: string; status: "
 type Tag = "HOT" | "NEW" | "FULL";
 
 const coverColors = ["from-[#102D54] via-[#154B95] to-[#2D74A8]", "from-[#102D54] to-[#2D74A8]", "from-[#154B95] via-[#2D74A8] to-[#D4EEED]", "from-[#102D54] via-[#102D54] to-[#154B95]", "from-[#2D74A8] via-[#154B95] to-[#102D54]", "from-[#102D54] via-[#154B95] to-[#EE4D2D]"];
-const NEW_DAYS = 7;
 
 function coverColor(slug: string) {
   let hash = 0;

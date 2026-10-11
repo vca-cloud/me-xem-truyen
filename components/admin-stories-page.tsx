@@ -14,6 +14,9 @@ import { HitsBadge, MatureBadge, ModerationStatusBadge, type ModerationHitSummar
 import { Switch } from "@/components/ui/switch";
 import { R2ImportDialog } from "@/components/r2-import-dialog";
 import { ManuscriptDialog } from "@/components/manuscript-dialog";
+import { StoryTag } from "@/components/home-page";
+import { HotPinSwitch } from "@/components/hot-pin-switch";
+import { HOT_MIN_VIEWS_7D, HOT_TOP, NEW_DAYS } from "@/lib/views";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,10 +31,10 @@ import { chapterPrice, DEFAULT_LOCK_PRICE, formatCoins } from "@/lib/coins";
 import { parseStoryImportCsv, storyImportTemplate } from "@/lib/story-import";
 import type { StoryStatus } from "@/lib/story-data";
 
-export type AdminStory = { id: string; slug: string; title: string; author: string; description: string; cover_url: string | null; audio_url: string | null; status: StoryStatus; lock_from_chapter: number | null; lock_price_coins: number; ads_disabled: boolean; genres: string[]; chapter_count: number; updated_at: string; moderation?: { pending: number; mature: number; ads_off: number } };
+export type AdminStory = { id: string; slug: string; title: string; author: string; description: string; cover_url: string | null; audio_url: string | null; status: StoryStatus; lock_from_chapter: number | null; lock_price_coins: number; ads_disabled: boolean; genres: string[]; chapter_count: number; created_at: string; updated_at: string; moderation?: { pending: number; mature: number; ads_off: number } ; hot_pinned?: boolean; hot?: boolean };
 export type R2Info = { dashboardBase: string | null; publicBase: string | null };
 type ChapterDraft = { chapter_number: string; title: string; text_url: string };
-type StoryForm = { id?: string; title: string; author: string; description: string; cover_url: string; audio_url: string; status: StoryStatus; genres: string[]; lock_from_chapter: string; lock_price_coins: string; ads_disabled: boolean; chapters: ChapterDraft[] };
+type StoryForm = { id?: string; title: string; author: string; description: string; cover_url: string; audio_url: string; status: StoryStatus; genres: string[]; lock_from_chapter: string; lock_price_coins: string; ads_disabled: boolean; hot_pinned: boolean; chapters: ChapterDraft[] };
 type ExistingChapter = { id: string; chapter_number: number; title: string; text_url: string; ads_enabled: boolean; moderation_status: string; moderation_hits: ModerationHitSummary[]; is_mature: boolean };
 
 const statuses: StoryStatus[] = ["Đang ra", "Hoàn thành", "Tạm dừng"];
@@ -224,6 +227,9 @@ function ChapterManager({ story, onChanged }: { story: AdminStory; onChanged: ()
   </div>;
 }
 
+// NEW tag rule shared with the home page (created in the last NEW_DAYS days).
+const isNewStory = (story: AdminStory) => Date.now() - new Date(story.created_at).getTime() < NEW_DAYS * 86_400_000;
+
 export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError }: { stories: AdminStory[]; genres: string[]; r2: R2Info; loadError: string | null }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -276,7 +282,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
     if (!form) return;
     if (!form.id) { const error = chapterError(form.chapters); if (error) return setFormError(error); }
     setFormError(null);
-    const payload = { title: form.title, author: form.author, description: form.description, cover_url: form.cover_url, audio_url: form.audio_url, status: form.status, genres: form.genres, lock_from_chapter: form.lock_from_chapter, lock_price_coins: form.lock_price_coins, ads_disabled: form.ads_disabled };
+    const payload = { title: form.title, author: form.author, description: form.description, cover_url: form.cover_url, audio_url: form.audio_url, status: form.status, genres: form.genres, lock_from_chapter: form.lock_from_chapter, lock_price_coins: form.lock_price_coins, ads_disabled: form.ads_disabled, hot_pinned: form.hot_pinned };
     const { ok, body } = form.id
       ? await send(`/api/admin/stories/${form.id}`, jsonInit("PATCH", payload))
       : await send("/api/admin/stories", jsonInit("POST", { ...payload, chapters: toChapterPayload(form.chapters) }));
@@ -294,8 +300,8 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
     router.refresh();
   }
 
-  const openCreate = () => { setFormError(null); setForm({ title: "", author: "", description: "", cover_url: "", audio_url: "", status: "Đang ra", genres: [], lock_from_chapter: "", lock_price_coins: String(DEFAULT_LOCK_PRICE), ads_disabled: false, chapters: [blankChapter(1)] }); };
-  const openEdit = (story: AdminStory) => { setFormError(null); setForm({ id: story.id, title: story.title, author: story.author, description: story.description, cover_url: story.cover_url ?? "", audio_url: story.audio_url ?? "", status: story.status, genres: story.genres, lock_from_chapter: story.lock_from_chapter === null ? "" : String(story.lock_from_chapter), lock_price_coins: String(story.lock_price_coins), ads_disabled: story.ads_disabled, chapters: [] }); };
+  const openCreate = () => { setFormError(null); setForm({ title: "", author: "", description: "", cover_url: "", audio_url: "", status: "Đang ra", genres: [], lock_from_chapter: "", lock_price_coins: String(DEFAULT_LOCK_PRICE), ads_disabled: false, hot_pinned: false, chapters: [blankChapter(1)] }); };
+  const openEdit = (story: AdminStory) => { setFormError(null); setForm({ id: story.id, title: story.title, author: story.author, description: story.description, cover_url: story.cover_url ?? "", audio_url: story.audio_url ?? "", status: story.status, genres: story.genres, lock_from_chapter: story.lock_from_chapter === null ? "" : String(story.lock_from_chapter), lock_price_coins: String(story.lock_price_coins), ads_disabled: story.ads_disabled, hot_pinned: story.hot_pinned ?? false, chapters: [] }); };
   const editingSlug = form?.id ? stories.find((story) => story.id === form.id)?.slug : null;
   const lockFrom = form && /^\d+$/.test(form.lock_from_chapter) && Number(form.lock_from_chapter) > 0 ? Number(form.lock_from_chapter) : null;
 
@@ -319,10 +325,14 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
           <SelectContent>{statusFilterItems.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
         </Select>
       </div>
-      {filtered.length ? <Table className="min-w-[940px]">
-        <TableHeader><TableRow><TableHead className="pl-5">Truyện</TableHead><TableHead>Thể loại</TableHead><TableHead className="text-right">Số chương</TableHead><TableHead>Khóa chương</TableHead><TableHead>Trạng thái</TableHead><TableHead>Cập nhật</TableHead><TableHead className="pr-5"><span className="sr-only">Thao tác</span></TableHead></TableRow></TableHeader>
+      {filtered.length ? <Table className="min-w-[1080px]">
+        <TableHeader><TableRow><TableHead className="pl-5">Truyện</TableHead><TableHead>Tag</TableHead><TableHead>Thể loại</TableHead><TableHead className="text-right">Số chương</TableHead><TableHead>Khóa chương</TableHead><TableHead>Trạng thái</TableHead><TableHead>Cập nhật</TableHead><TableHead className="pr-5"><span className="sr-only">Thao tác</span></TableHead></TableRow></TableHeader>
         <TableBody>{filtered.map((story) => <TableRow key={story.id}>
           <TableCell className="max-w-72 pl-5"><p className="flex items-center gap-1.5 truncate font-medium">{story.moderation?.mature ? <MatureBadge /> : null}<span className="truncate">{story.title}</span></p><p className="truncate text-xs text-muted-foreground">{story.author}</p>{story.moderation?.pending ? <button type="button" onClick={() => setChapterTarget(story)} className="mt-1"><Badge variant="destructive">{story.moderation.pending} chương chờ duyệt</Badge></button> : null}</TableCell>
+          <TableCell><div className="flex min-w-36 flex-col gap-1.5">
+            <div className="flex flex-wrap gap-1">{story.hot && <span title={story.hot_pinned ? "HOT do admin ghim" : "HOT tự động (top lượt xem 7 ngày)"}><StoryTag tag="HOT" small /></span>}{isNewStory(story) && <StoryTag tag="NEW" small />}{story.status === "Hoàn thành" && <StoryTag tag="FULL" small />}{!story.hot && !isNewStory(story) && story.status !== "Hoàn thành" && <span className="text-xs text-muted-foreground">—</span>}</div>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground"><HotPinSwitch storyId={story.id} title={story.title} pinned={story.hot_pinned ?? false} />Ghim HOT</label>
+          </div></TableCell>
           <TableCell className="max-w-56"><div className="flex flex-wrap gap-1">{story.genres.length ? story.genres.map((genre) => <Badge key={genre} variant="secondary">{genre}</Badge>) : <span className="text-muted-foreground">—</span>}</div></TableCell>
           <TableCell className="text-right tabular-nums">{story.chapter_count}</TableCell>
           <TableCell className="whitespace-nowrap text-muted-foreground">{story.lock_from_chapter === null ? "Miễn phí" : `Từ ch.${story.lock_from_chapter} · ${formatCoins(story.lock_price_coins)}`}{story.ads_disabled && <Badge variant="outline" className="ml-2">Không QC</Badge>}</TableCell>
@@ -371,6 +381,10 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
               </div>
               <FieldDescription>{lockFrom ? `Chương 1–${lockFrom - 1} miễn phí; từ chương ${lockFrom} trở đi mỗi chương ${form.lock_price_coins || DEFAULT_LOCK_PRICE} Xu (1 Xu = 100đ). Chương thêm sau cũng tự khóa.` : "Toàn bộ truyện đang miễn phí."}</FieldDescription>
             </FieldSet>
+            <Field orientation="horizontal" className="rounded-lg border p-3">
+              <Checkbox id="hot-pinned" checked={form.hot_pinned} onCheckedChange={(checked) => setForm({ ...form, hot_pinned: checked === true })} />
+              <div className="grid gap-1"><FieldLabel htmlFor="hot-pinned" className="flex items-center gap-2">Gắn tag <StoryTag tag="HOT" small /></FieldLabel><FieldDescription>Luôn hiện HOT cho truyện này. Không chọn thì HOT tự động khi truyện thuộc top {HOT_TOP} lượt xem 7 ngày (từ {HOT_MIN_VIEWS_7D} lượt). NEW (đăng trong {NEW_DAYS} ngày) và FULL (trạng thái Hoàn thành) luôn tự động.</FieldDescription></div>
+            </Field>
             <Field orientation="horizontal" className="rounded-lg border p-3">
               <Checkbox id="ads-disabled" checked={form.ads_disabled} onCheckedChange={(checked) => setForm({ ...form, ads_disabled: checked === true })} />
               <div className="grid gap-1"><FieldLabel htmlFor="ads-disabled">Tắt quảng cáo cho truyện này</FieldLabel><FieldDescription>Bật với truyện có nội dung người lớn/nhạy cảm — Google không cho đặt quảng cáo cạnh nội dung đó.</FieldDescription></div>

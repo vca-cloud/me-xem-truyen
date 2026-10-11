@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   try {
     const guard = await guardAdminApi(roleAccess.content);
     if (guard.error) return guard.error;
-    const body = await request.json() as { title?: string; author?: string; description?: string; cover_url?: string; audio_url?: string; status?: string; genres?: string[] | string; lock_from_chapter?: unknown; lock_price_coins?: unknown; ads_disabled?: unknown; chapters?: { chapter_number: number; title: string; text_url: string; ads_enabled?: boolean }[] };
+    const body = await request.json() as { title?: string; author?: string; description?: string; cover_url?: string; audio_url?: string; status?: string; genres?: string[] | string; lock_from_chapter?: unknown; lock_price_coins?: unknown; ads_disabled?: unknown; hot_pinned?: unknown; chapters?: { chapter_number: number; title: string; text_url: string; ads_enabled?: boolean }[] };
     const title = body.title?.trim() ?? "";
     const author = body.author?.trim() ?? "";
     if (!title || !author) return NextResponse.json({ error: "Tên truyện và tác giả là bắt buộc." }, { status: 400 });
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     if (contentError) return NextResponse.json({ error: contentError }, { status: 400 });
     if (chapters.some((chapter) => !Number.isInteger(chapter.chapter_number) || chapter.chapter_number < 1)) return NextResponse.json({ error: "Mỗi chương phải có số hợp lệ và link Text URL hợp lệ." }, { status: 400 });
     const supabase = await createClient();
-    const { data: story, error } = await supabase.from("stories").insert({ slug: slugify(title), title, author, description: body.description?.trim() ?? "", cover_url: body.cover_url?.trim() || null, audio_url: body.audio_url?.trim() || null, status: body.status ?? "Đang ra", ads_disabled: body.ads_disabled === true, ...lock.value }).select("id, slug, title, author, description, cover_url, audio_url, status").single();
+    const { data: story, error } = await supabase.from("stories").insert({ slug: slugify(title), title, author, description: body.description?.trim() ?? "", cover_url: body.cover_url?.trim() || null, audio_url: body.audio_url?.trim() || null, status: body.status ?? "Đang ra", ads_disabled: body.ads_disabled === true, hot_pinned: body.hot_pinned === true, ...lock.value }).select("id, slug, title, author, description, cover_url, audio_url, status").single();
     if (error || !story) return NextResponse.json({ error: error?.code === "23505" ? "Đã có truyện trùng tên (trùng slug)." : error?.message ?? "Không thể tạo truyện." }, { status: 400 });
     let pending = 0;
     try {

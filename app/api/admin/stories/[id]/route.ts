@@ -50,8 +50,11 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
     const supabase = await createClient();
     const previous = "cover_url" in update ? (await supabase.from("stories").select("cover_url").eq("id", id).maybeSingle()).data?.cover_url : null;
     // Only content changes move the story up in “Mới cập nhật”; switches (HOT, Gợi ý, AdSense, Shopee, lock) do not.
-    const contentKeys = ["title", "author", "description", "cover_url", "audio_url", "status"];
-    const touchesContent = contentKeys.some((key) => key in update) || body.genres !== undefined;
+    const contentKeys = ["title", "author", "description", "cover_url", "audio_url", "status"] as const;
+    const { data: before } = await supabase.from("stories").select("title, author, description, cover_url, audio_url, status, story_genres(genres(name))").eq("id", id).maybeSingle();
+    const oldGenres = ((before?.story_genres ?? []) as unknown as { genres: { name: string } | null }[]).map((row) => row.genres?.name).filter(Boolean).sort().join("|");
+    const newGenres = body.genres !== undefined ? parseGenreNames(body.genres).sort().join("|") : oldGenres;
+    const touchesContent = !before || contentKeys.some((key) => key in update && (update[key] ?? null) !== ((before as Record<string, unknown>)[key] ?? null)) || newGenres !== oldGenres;
     const { error } = await supabase.from("stories").update(touchesContent ? { ...update, updated_at: new Date().toISOString() } : update).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     // A replaced uploaded cover is removed from R2 (only when no other story still uses it).

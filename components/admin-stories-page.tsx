@@ -333,7 +333,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, affiliateLinks
           <TableCell><div className="flex min-w-36 flex-col gap-1.5">
             <div className="flex flex-wrap gap-1">{storyTags(story, now).map((tag) => <span key={tag} title={tag === "HOT" ? (story.hot_pinned ? "HOT do admin ghim" : "HOT tự động (top lượt xem 7 ngày)") : undefined}><StoryTag tag={tag} small /></span>)}{!storyTags(story, now).length && <span className="text-xs text-muted-foreground">—</span>}</div>
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground"><HotPinSwitch storyId={story.id} title={story.title} pinned={story.hot_pinned ?? false} />Ghim HOT</label>
-            <label className="flex items-center gap-1.5 text-xs text-muted-foreground"><StoryFlagSwitch storyId={story.id} checked={story.featured ?? false} label={`Đưa ${story.title} vào Truyện nên đọc`} body={(on) => ({ featured: on })} onMessage={`Đã đưa vào “Truyện nên đọc”: ${story.title}`} offMessage={`Đã bỏ khỏi “Truyện nên đọc”: ${story.title}`} />Nên đọc</label>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground"><StoryFlagSwitch storyId={story.id} checked={story.featured ?? false} label={`Đưa ${story.title} vào Gợi ý truyện`} body={(on) => ({ featured: on })} onMessage={`Đã đưa vào “Gợi ý truyện”: ${story.title}`} offMessage={`Đã bỏ khỏi “Gợi ý truyện”: ${story.title}`} />Gợi ý</label>
           </div></TableCell>
           <TableCell className="max-w-56"><div className="flex flex-wrap gap-1">{story.genres.length ? story.genres.map((genre) => <Badge key={genre} variant="secondary">{genre}</Badge>) : <span className="text-muted-foreground">—</span>}</div></TableCell>
           <TableCell className="text-right tabular-nums">{story.chapter_count}</TableCell>
@@ -389,7 +389,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, affiliateLinks
             </FieldSet>
             <Field orientation="horizontal" className="rounded-lg border p-3">
               <Checkbox id="featured" checked={form.featured} onCheckedChange={(checked) => setForm({ ...form, featured: checked === true })} />
-              <div className="grid gap-1"><FieldLabel htmlFor="featured">Đưa vào “Truyện nên đọc”</FieldLabel><FieldDescription>Hiện ở mục đầu trang chủ (4 truyện, truyện chọn gần nhất đứng trước). Chỗ trống tự lấp bằng truyện nhiều lượt xem 7 ngày.</FieldDescription></div>
+              <div className="grid gap-1"><FieldLabel htmlFor="featured">Đưa vào “Gợi ý truyện”</FieldLabel><FieldDescription>Hiện ở mục đầu trang chủ (4 truyện, truyện chọn gần nhất đứng trước). Chỗ trống tự lấp bằng truyện nhiều lượt xem 7 ngày.</FieldDescription></div>
             </Field>
             <Field orientation="horizontal" className="rounded-lg border p-3">
               <Checkbox id="hot-pinned" checked={form.hot_pinned} onCheckedChange={(checked) => setForm({ ...form, hot_pinned: checked === true })} />

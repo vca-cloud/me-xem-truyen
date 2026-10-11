@@ -1,4 +1,4 @@
--- "Truyện nên đọc" on the home page: stories picked by an admin (most recently picked first).
+-- "Gợi ý truyện" on the home page: stories picked by an admin (most recently picked first).
 -- Empty slots are filled automatically by real 7-day views (see app/page.tsx).
 alter table public.stories
   add column if not exists featured boolean not null default false,

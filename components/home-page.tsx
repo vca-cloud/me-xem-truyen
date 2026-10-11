@@ -97,7 +97,7 @@ export function HomePage({ stories, recommended = [], catalog, loadError }: { st
         {loadError && <p role="alert" className="rounded-md border border-highlight/40 bg-highlight/10 px-4 py-3 text-sm text-foreground">Không tải được danh sách truyện. Vui lòng thử lại sau.</p>}
         {!loadError && stories.length === 0 && <p className="rounded-md border border-dashed px-4 py-12 text-center text-muted-foreground">Chưa có truyện nào được đăng.</p>}
 
-        {picks.length > 0 && <section><SectionTitle>Truyện nên đọc</SectionTitle><div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 lg:gap-x-5">{picks.map((story) => <StoryTile key={story.slug} story={story} tags={tagsOf(story)} />)}</div></section>}
+        {picks.length > 0 && <section><SectionTitle>Gợi ý truyện</SectionTitle><div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 lg:gap-x-5">{picks.map((story) => <StoryTile key={story.slug} story={story} tags={tagsOf(story)} />)}</div></section>}
 
         {newest.length > 0 && <section><SectionTitle>Truyện mới đăng</SectionTitle><div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 lg:gap-x-5">{newest.map((story) => <StoryTile key={story.slug} story={story} tags={tagsOf(story)} />)}</div></section>}
 

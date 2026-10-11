@@ -157,7 +157,7 @@ export async function getStoryPopup(storyId: string) {
   return row ? { linkId: row.link_id, name: row.name, imageUrl: row.image_url, headline: row.headline, gateMinutes: row.gate_minutes } : null;
 }
 
-// Stories an admin picked for "Truyện nên đọc" (migration 0013), newest pick first; empty before the migration.
+// Stories an admin picked for "Gợi ý truyện" (migration 0013), newest pick first; empty before the migration.
 export async function getFeaturedStoryIds() {
   const supabase = await createClient();
   const { data, error } = await supabase.from("stories").select("id").eq("featured", true).order("featured_at", { ascending: false, nullsFirst: false });

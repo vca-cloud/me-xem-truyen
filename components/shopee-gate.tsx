@@ -52,27 +52,27 @@ export function ShopeeGate({ popup, storyId, storySlug, chapterNumber, chapterTi
   }
 
   const href = `/go/${popup.linkId}?s=${encodeURIComponent(storySlug)}&c=${chapterNumber}`;
-  return <div role="dialog" aria-modal="true" aria-labelledby="shopee-gate-title" className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-3 backdrop-blur-md sm:items-center sm:p-6">
-    <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-highlight/40 bg-card text-card-foreground shadow-2xl">
-      <div className="flex items-center justify-between bg-highlight px-5 py-3 text-highlight-foreground">
-        <span className="flex items-center gap-2 text-lg font-bold"><ShoppingBag className="size-5" aria-hidden="true" />Shopee</span>
-        <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">Miễn phí</span>
+  return <div role="dialog" aria-modal="true" aria-labelledby="shopee-gate-title" className="fixed inset-0 z-[60] flex items-end justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-md sm:items-center sm:p-6">
+    <div className="max-h-full w-full max-w-xl overflow-y-auto rounded-3xl border border-highlight/40 bg-card text-card-foreground shadow-2xl">
+      <div className="flex items-center justify-between bg-highlight px-6 py-4 text-highlight-foreground">
+        <span className="flex items-center gap-2.5 text-2xl font-bold"><ShoppingBag className="size-7" aria-hidden="true" />Shopee</span>
+        <span className="rounded-full bg-white/20 px-3 py-1 text-base font-semibold">Miễn phí</span>
       </div>
-      <div className="space-y-4 p-5">
+      <div className="space-y-5 p-6 sm:p-7">
         <div>
-          <p id="shopee-gate-title" className="text-xl font-bold">Mở khóa chương miễn phí</p>
-          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">Chương {chapterNumber}: {chapterTitle}</p>
+          <p id="shopee-gate-title" className="text-[28px] leading-tight font-bold sm:text-3xl">Mở khóa chương miễn phí</p>
+          <p className="mt-2 line-clamp-2 text-lg text-muted-foreground">Chương {chapterNumber}: {chapterTitle}</p>
         </div>
-        {(popup.imageUrl || popup.headline) && <a href={href} target="_blank" rel="noopener sponsored" onClick={unlock} className="flex items-center gap-3 rounded-xl border p-2 transition-colors hover:border-highlight">
+        {(popup.imageUrl || popup.headline) && <a href={href} target="_blank" rel="noopener sponsored" onClick={unlock} className="flex items-center gap-4 rounded-2xl border p-3 transition-colors hover:border-highlight">
           {/* eslint-disable-next-line @next/next/no-img-element -- product picture from Shopee */}
-          {popup.imageUrl && <img src={popup.imageUrl} alt="" className="size-20 shrink-0 rounded-lg object-cover" />}
-          <span className="min-w-0"><span className="line-clamp-2 font-semibold">{popup.name}</span>{popup.headline && <span className="mt-0.5 line-clamp-2 block text-sm text-highlight">{popup.headline}</span>}</span>
+          {popup.imageUrl && <img src={popup.imageUrl} alt="" className="size-24 shrink-0 rounded-xl object-cover sm:size-28" />}
+          <span className="min-w-0"><span className="line-clamp-2 text-xl font-semibold">{popup.name}</span>{popup.headline && <span className="mt-1 line-clamp-2 block text-lg text-highlight">{popup.headline}</span>}</span>
         </a>}
-        <p className="text-sm text-muted-foreground">Bấm nút bên dưới để ghé Shopee ủng hộ <BrandName />. Chương sẽ mở ngay khi bạn quay lại trang này.</p>
-        <a href={href} target="_blank" rel="noopener sponsored" onClick={unlock} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-highlight text-base font-bold text-highlight-foreground shadow-md transition-colors hover:bg-highlight/90">
-          <ExternalLink className="size-5" aria-hidden="true" />Mở Shopee &amp; đọc tiếp
+        <p className="text-lg leading-relaxed text-muted-foreground">Bấm nút bên dưới để ghé Shopee ủng hộ <BrandName />. Chương sẽ mở ngay khi bạn quay lại trang này.</p>
+        <a href={href} target="_blank" rel="noopener sponsored" onClick={unlock} className="flex h-16 w-full items-center justify-center gap-2.5 rounded-2xl bg-highlight text-xl font-bold text-highlight-foreground shadow-md transition-colors hover:bg-highlight/90 sm:text-2xl">
+          <ExternalLink className="size-6" aria-hidden="true" />Mở Shopee &amp; đọc tiếp
         </a>
-        <p className="text-center text-[11px] leading-snug text-muted-foreground"><BrandName /> có thể nhận hoa hồng khi bạn mua hàng qua liên kết — giá bạn trả không đổi.</p>
+        <p className="text-center text-sm leading-snug text-muted-foreground"><BrandName /> có thể nhận hoa hồng khi bạn mua hàng qua liên kết — giá bạn trả không đổi.</p>
       </div>
     </div>
   </div>;

@@ -84,8 +84,8 @@ export function ShopeeGate({ popup, storyId, storySlug, chapterNumber, chapterTi
         <a href={href} target="_blank" rel="noopener sponsored" onClick={unlock} className="flex h-20 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-3xl bg-highlight px-4 text-[22px] font-bold text-highlight-foreground shadow-md transition-colors hover:bg-highlight/90 sm:h-24 sm:text-4xl">
           <ExternalLink className="size-7 shrink-0 sm:size-9" aria-hidden="true" />Mở Shopee &amp; đọc tiếp
         </a>
-        <p className="text-[23px] leading-relaxed text-muted-foreground sm:text-[27px]">Ghé Shopee là bạn đã ủng hộ <BrandName />. Chương sẽ mở khi bạn quay lại trang này{popup.gateMinutes === 0 ? " (mỗi lần mở chương cần bấm lại)" : ""}.</p>
-        <p className="text-center text-lg leading-snug text-muted-foreground sm:text-xl"><BrandName /> có thể nhận hoa hồng khi bạn mua hàng qua liên kết — giá bạn trả không đổi.</p>
+        <p className="text-[23px] leading-relaxed text-muted-foreground sm:text-[27px]">Ghé Shopee là bạn đã ủng hộ <BrandName />. Chương sẽ mở khi bạn quay lại trang này. Hoàn toàn miễn phí.</p>
+        <p className="text-center text-lg leading-snug text-muted-foreground sm:text-xl"><BrandName /> cần kinh phí để duy trì kênh miễn phí. Mong bạn thông cảm.</p>
       </div>
     </div>
   </div>;

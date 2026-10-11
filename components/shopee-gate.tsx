@@ -85,7 +85,7 @@ export function ShopeeGate({ popup, storyId, storySlug, chapterNumber, chapterTi
           <ExternalLink className="size-7 shrink-0 sm:size-9" aria-hidden="true" />Mở Shopee &amp; đọc tiếp
         </a>
         <p className="text-[23px] leading-relaxed text-muted-foreground sm:text-[27px]">Ghé Shopee là bạn đã ủng hộ <BrandName />. Chương sẽ mở khi bạn quay lại trang này. Hoàn toàn miễn phí.</p>
-        <p className="text-center text-lg leading-snug text-muted-foreground sm:text-xl"><BrandName /> cần kinh phí để duy trì kênh miễn phí. Mong bạn thông cảm.</p>
+        <p className="text-center text-lg leading-snug text-muted-foreground sm:text-xl"><BrandName /> cần kinh phí để duy trì kênh miễn phí và có thể nhận hoa hồng từ liên kết này. Mong bạn thông cảm.</p>
       </div>
     </div>
   </div>;

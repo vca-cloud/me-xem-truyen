@@ -142,12 +142,12 @@ Chạy theo thứ tự trong Supabase SQL Editor:
 
 9. `0009_views.sql` — `stories.hot_pinned`; `story_view_stats()` (public: tổng + 7 ngày + hot_pinned theo truyện, chỉ truyện đang công khai); `admin_view_stats(p_days)` (admin: tổng, người đọc, hôm nay/7/30 ngày, chuỗi theo ngày, theo truyện + sparkline 14 ngày).
 
-11b. `0012_affiliate_popup.sql` — `stories.affiliate_enabled/affiliate_gate_minutes/affiliate_link_id`, `affiliate_links.image_url/headline`, RPC `story_affiliate_popup`.
 10. `0010_view_window.sql` — `track_view` tính lại lượt xem cùng người/cùng trang sau 15 phút (trước 30); giữ giới hạn 300 lượt/giờ/IP.
 
 11. `0011_moderation_rescan.sql` — `moderation_state` (chỉ server đọc), trigger cập nhật thời điểm đổi từ điển, index `chapters.moderated_at`.
+12. `0012_affiliate_popup.sql` — `stories.affiliate_enabled/affiliate_gate_minutes/affiliate_link_id`, `affiliate_links.image_url/headline`, RPC `story_affiliate_popup`.
 
-Đã chạy `0001`–`0010` trên project hiện tại (`0011` chờ chạy). Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
+Đã chạy `0001`–`0010` trên project hiện tại (`0011`, `0012` chờ chạy). Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
 
 ## 7. Import truyện hàng loạt
 

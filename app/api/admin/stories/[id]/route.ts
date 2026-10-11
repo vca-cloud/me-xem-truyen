@@ -49,7 +49,10 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
 
     const supabase = await createClient();
     const previous = "cover_url" in update ? (await supabase.from("stories").select("cover_url").eq("id", id).maybeSingle()).data?.cover_url : null;
-    const { error } = await supabase.from("stories").update({ ...update, updated_at: new Date().toISOString() }).eq("id", id);
+    // Only content changes move the story up in “Mới cập nhật”; switches (HOT, Gợi ý, AdSense, Shopee, lock) do not.
+    const contentKeys = ["title", "author", "description", "cover_url", "audio_url", "status"];
+    const touchesContent = contentKeys.some((key) => key in update) || body.genres !== undefined;
+    const { error } = await supabase.from("stories").update(touchesContent ? { ...update, updated_at: new Date().toISOString() } : update).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     // A replaced uploaded cover is removed from R2 (only when no other story still uses it).
     if (previous && previous !== update.cover_url && serviceRoleReady()) await deleteCoverIfUnused(createServiceClient(), previous);

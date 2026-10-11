@@ -19,7 +19,10 @@ export default async function Home() {
     // most recently updated — so the section always has RECOMMENDED_COUNT stories once enough stories exist.
     const slugById = new Map(rows.map((row) => [row.id, row.slug]));
     const byViews = rows.filter((row) => (views.stats.get(row.id)?.views_7d ?? 0) > 0).sort((a, b) => (views.stats.get(b.id)?.views_7d ?? 0) - (views.stats.get(a.id)?.views_7d ?? 0));
-    recommended = [...new Set([...featured.map((id) => slugById.get(id)).filter((slug): slug is string => !!slug), ...byViews.map((row) => row.slug), ...rows.map((row) => row.slug)])].slice(0, RECOMMENDED_COUNT);
+    const chosen = [...new Set([...featured.map((id) => slugById.get(id)).filter((slug): slug is string => !!slug), ...byViews.map((row) => row.slug), ...rows.map((row) => row.slug)])].slice(0, RECOMMENDED_COUNT);
+    // Shown newest update first.
+    const updatedAt = new Map(rows.map((row) => [row.slug, row.updated_at]));
+    recommended = chosen.sort((a, b) => (updatedAt.get(b) ?? "").localeCompare(updatedAt.get(a) ?? ""));
   } catch (error) {
     loadError = error instanceof Error ? error.message : "Lỗi không xác định.";
   }

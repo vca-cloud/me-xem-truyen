@@ -413,7 +413,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, affiliateLinks
                     <SelectTrigger className="w-full" aria-label="Hiện lại pop-up"><SelectValue /></SelectTrigger>
                     <SelectContent>{AFFILIATE_GATE_OPTIONS.map((option) => <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>)}</SelectContent>
                   </Select>
-                  <FieldDescription>Sau khi người đọc đã bấm Shopee. “Mỗi chương” làm phiền nhiều nhất; 2 giờ hoặc 24 giờ ít bị bỏ đi hơn.</FieldDescription>
+                  <FieldDescription>“Mỗi lần mở chương”: mỗi lần vào trang chương (kể cả quay lại, tải lại) đều phải bấm Shopee — làm phiền nhiều nhất. 30 phút / 2 giờ / 24 giờ: nhớ lượt bấm cho cả truyện trong khoảng đó.</FieldDescription>
                 </Field>
               </div>}
               {form.affiliate_enabled && !form.ads_disabled && <Alert><AlertDescription>Đang bật cả AdSense và pop-up Shopee. Google xếp pop-up che nội dung vào trải nghiệm quảng cáo xấu (Better Ads) — nên tắt AdSense ở truyện có pop-up để tránh ảnh hưởng tài khoản AdSense.</AlertDescription></Alert>}

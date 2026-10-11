@@ -16,7 +16,7 @@ import { R2ImportDialog } from "@/components/r2-import-dialog";
 import { ManuscriptDialog } from "@/components/manuscript-dialog";
 import { StoryTag } from "@/components/home-page";
 import { HotPinSwitch } from "@/components/hot-pin-switch";
-import { HOT_MIN_VIEWS_7D, HOT_TOP, NEW_DAYS } from "@/lib/views";
+import { HOT_MIN_VIEWS_7D, HOT_TOP, NEW_DAYS, storyTags } from "@/lib/views";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -227,13 +227,12 @@ function ChapterManager({ story, onChanged }: { story: AdminStory; onChanged: ()
   </div>;
 }
 
-// NEW tag rule shared with the home page (created in the last NEW_DAYS days).
-const isNewStory = (story: AdminStory) => Date.now() - new Date(story.created_at).getTime() < NEW_DAYS * 86_400_000;
-
 export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError }: { stories: AdminStory[]; genres: string[]; r2: R2Info; loadError: string | null }) {
   const router = useRouter();
   const confirm = useConfirm();
   const [catalog, setCatalog] = useState(genreCatalog);
+  // Reference time for the NEW tag, fixed at first render.
+  const [now] = useState(() => Date.now());
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [pending, setPending] = useState(false);
@@ -330,7 +329,7 @@ export function AdminStoriesPage({ stories, genres: genreCatalog, r2, loadError 
         <TableBody>{filtered.map((story) => <TableRow key={story.id}>
           <TableCell className="max-w-72 pl-5"><p className="flex items-center gap-1.5 truncate font-medium">{story.moderation?.mature ? <MatureBadge /> : null}<span className="truncate">{story.title}</span></p><p className="truncate text-xs text-muted-foreground">{story.author}</p>{story.moderation?.pending ? <button type="button" onClick={() => setChapterTarget(story)} className="mt-1"><Badge variant="destructive">{story.moderation.pending} chương chờ duyệt</Badge></button> : null}</TableCell>
           <TableCell><div className="flex min-w-36 flex-col gap-1.5">
-            <div className="flex flex-wrap gap-1">{story.hot && <span title={story.hot_pinned ? "HOT do admin ghim" : "HOT tự động (top lượt xem 7 ngày)"}><StoryTag tag="HOT" small /></span>}{isNewStory(story) && <StoryTag tag="NEW" small />}{story.status === "Hoàn thành" && <StoryTag tag="FULL" small />}{!story.hot && !isNewStory(story) && story.status !== "Hoàn thành" && <span className="text-xs text-muted-foreground">—</span>}</div>
+            <div className="flex flex-wrap gap-1">{storyTags(story, now).map((tag) => <span key={tag} title={tag === "HOT" ? (story.hot_pinned ? "HOT do admin ghim" : "HOT tự động (top lượt xem 7 ngày)") : undefined}><StoryTag tag={tag} small /></span>)}{!storyTags(story, now).length && <span className="text-xs text-muted-foreground">—</span>}</div>
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground"><HotPinSwitch storyId={story.id} title={story.title} pinned={story.hot_pinned ?? false} />Ghim HOT</label>
           </div></TableCell>
           <TableCell className="max-w-56"><div className="flex flex-wrap gap-1">{story.genres.length ? story.genres.map((genre) => <Badge key={genre} variant="secondary">{genre}</Badge>) : <span className="text-muted-foreground">—</span>}</div></TableCell>

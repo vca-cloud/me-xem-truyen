@@ -72,7 +72,7 @@ API tác giả (`guardAuthorApi()`, ghi bằng service role sau khi kiểm sessi
 - Server component `app/page.tsx` tải truyện, client component `components/home-page.tsx` hiển thị.
 - Header dùng chung (`components/site-header.tsx`): logo, menu Thể loại (từ admin), ô tìm kiếm → `/tim-kiem`, đăng nhập/đăng ký hoặc số Xu, nút sáng/tối. Điện thoại: dòng 1 logo + sáng/tối, dòng 2 menu + tìm kiếm + tài khoản.
 - Section truyện mới đăng (ô ảnh bìa 4:5, nhãn NEW trong 7 ngày, FULL khi hoàn thành), mới cập nhật (bảng), truyện hoàn thành; ẩn section trống.
-- Tag trên ảnh bìa: HOT (cam `highlight`, icon lửa), NEW (#2D74A8, 7 ngày), FULL (#154B95, hoàn thành) — `StoryTag`; số lượt xem thật góc phải ảnh bìa; bảng có cột Lượt xem (từ `sm`) và tag HOT nhỏ cạnh tên.
+- Tag trên ảnh bìa: HOT (cam `highlight`, icon lửa), NEW (#2D74A8, 7 ngày), FULL (#154B95, hoàn thành) — `StoryTag`; số lượt xem thật góc phải ảnh bìa; bảng có cột Lượt xem (từ `sm`) và đủ tag HOT/NEW/FULL nhỏ cạnh tên (trang chủ, tìm kiếm). Quy tắc tag dùng chung `storyTags()` trong `lib/views.ts`.
 - Danh sách truyện lọc theo thể loại trong admin, phân trang 10 truyện/trang; cột Tình trạng; badge thể loại một dòng, truncate text.
 - Cover/tên truyện liên kết tới `/truyen/[slug]`.
 

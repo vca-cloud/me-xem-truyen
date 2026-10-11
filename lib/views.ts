@@ -18,6 +18,17 @@ export function publicViews(total: number) {
   return total >= PUBLIC_VIEWS_MIN ? total : 0;
 }
 
+export type StoryTagName = "HOT" | "NEW" | "FULL";
+
+// Tags shown on covers and next to titles in lists: HOT, NEW (created in the last NEW_DAYS days), FULL (completed).
+export function storyTags(story: { hot?: boolean; created_at: string; status: string }, now: number): StoryTagName[] {
+  const tags: StoryTagName[] = [];
+  if (story.hot) tags.push("HOT");
+  if (now - new Date(story.created_at).getTime() < NEW_DAYS * 86_400_000) tags.push("NEW");
+  if (story.status === "Hoàn thành") tags.push("FULL");
+  return tags;
+}
+
 export type ViewStats = { total_views: number; views_7d: number; hot_pinned: boolean };
 
 export function hotStoryIds(stats: Map<string, ViewStats>) {

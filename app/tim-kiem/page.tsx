@@ -10,13 +10,15 @@ import { Card } from "@/components/ui/card";
 import { maskForReaders } from "@/lib/moderation";
 import { searchHref, searchStories, sortOptions, type SearchSort, type SearchState } from "@/lib/search";
 import { getGenreCatalog, getViewStats, listStories } from "@/lib/stories";
-import { formatViews, publicViews } from "@/lib/views";
+import { formatViews, publicViews, storyTags } from "@/lib/views";
 
 const PAGE_SIZE = 20;
 const statuses = ["Đang ra", "Hoàn thành", "Tạm dừng"];
 
 export const metadata: Metadata = { title: "Tìm truyện", robots: { index: false, follow: true } };
 
+// Tags against the time of this request (server render).
+const tagsNow = (story: { hot?: boolean; created_at: string; status: string }) => storyTags(story, Date.now());
 const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) ?? "";
 
 export default async function SearchPage({ searchParams }: PageProps<"/tim-kiem">) {
@@ -48,7 +50,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/tim-kiem"
       <Card className="overflow-hidden border-border/70 py-0">
         <div className="grid grid-cols-[minmax(0,1fr)_6.5rem_4rem] border-b bg-muted/50 px-4 py-3 text-xs font-bold sm:grid-cols-[minmax(0,1fr)_minmax(0,10rem)_minmax(0,14rem)_8rem_5rem_6rem] sm:px-5"><span>Tên truyện</span><span className="hidden truncate sm:block">Tác giả</span><span className="hidden truncate sm:block">Thể loại</span><span>Tình trạng</span><span className="text-right">Chương</span><span className="hidden text-right sm:block">Lượt xem</span></div>
         {pageResults.map((story) => <div key={story.slug} className="grid grid-cols-[minmax(0,1fr)_6.5rem_4rem] items-center border-b px-4 py-3 text-sm last:border-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,10rem)_minmax(0,14rem)_8rem_5rem_6rem] sm:px-5">
-          <div className="min-w-0 pr-3"><Link href={`/truyen/${story.slug}`} className="flex min-w-0 items-center gap-1.5 font-medium hover:text-highlight"><span className="truncate">{story.title}</span>{story.hot && <StoryTag tag="HOT" small />}</Link><p className="truncate text-xs text-muted-foreground sm:hidden">{story.author}</p></div>
+          <div className="min-w-0 pr-3"><Link href={`/truyen/${story.slug}`} className="flex min-w-0 items-center gap-1.5 font-medium hover:text-highlight"><span className="truncate">{story.title}</span>{tagsNow(story).map((tag) => <StoryTag key={tag} tag={tag} small />)}</Link><p className="truncate text-xs text-muted-foreground sm:hidden">{story.author}</p></div>
           <span className="hidden truncate pr-3 text-muted-foreground sm:block">{story.author}</span>
           <div className="hidden min-w-0 pr-3 sm:block"><GenreBadges genres={story.genres} /></div>
           <div className="min-w-0 pr-2"><StatusBadge status={story.status} /></div>

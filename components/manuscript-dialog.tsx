@@ -2,7 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ChevronDown, ChevronRight, FileText, FolderOpen, Link2, ListOrdered, Upload, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, FileText, FolderOpen, ImagePlus, Link2, ListOrdered, Upload, X } from "lucide-react";
+import { CoverUploader } from "@/components/cover-uploader";
 import { GenreCombobox } from "@/components/genre-combobox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -14,11 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { chapterFileText, chapterNumberFromName, chapterWarnings, fileStoryInfo, markdownBlocks, splitManuscript, textBlocks, type ManuscriptBlock, type ManuscriptChapter } from "@/lib/manuscript";
+import { COVER_HINT } from "@/lib/cover";
 import { storySlug } from "@/lib/story-data";
 
-export type ManuscriptTarget = { id: string; title: string; lock_from_chapter: number | null };
+export type ManuscriptTarget = { id: string; title: string; lock_from_chapter: number | null; cover_url?: string | null };
 type SourceFile = { id: string; name: string; path: string; chapters: ManuscriptChapter[]; preamble: number; order: number };
-type GroupMeta = { title: string; target: string; author: string; status: string; genres: string[]; free: boolean; include: boolean };
+type GroupMeta = { title: string; target: string; author: string; status: string; genres: string[]; free: boolean; include: boolean; cover: string };
 type Edit = { title?: string; include?: boolean; number?: number };
 type Row = { key: string; number: number; title: string; paragraphs: string[]; words: number; include: boolean; file: string };
 type Result = { number: number; status: "added" | "skipped" | "error"; message?: string; flagged?: boolean; publish_status?: string };
@@ -180,7 +182,7 @@ export function ManuscriptDialog({ open, onOpenChange, mode, stories = [], story
       if (!meta[key] && !nextMeta[key]) {
         const match = storyBySlug.get(storySlug(info.title));
         if (match) void loadExisting(match.id);
-        nextMeta[key] = { title: info.title || "Truyện mới", target: mode === "author" ? story!.id : match?.id ?? NEW, author: "", status: "Đang ra", genres: [], free: match ? match.lock_from_chapter === null : common.free, include: true };
+        nextMeta[key] = { title: info.title || "Truyện mới", target: mode === "author" ? story!.id : match?.id ?? NEW, author: "", status: "Đang ra", genres: [], free: match ? match.lock_from_chapter === null : common.free, include: true, cover: match?.cover_url ?? "" };
       }
     }
     setFiles((current) => [...current, ...nextFiles]);
@@ -237,7 +239,7 @@ export function ManuscriptDialog({ open, onOpenChange, mode, stories = [], story
     if (key === SPLIT) {
       const own = `f:${fileId}`;
       title = file.name.replace(/\.[^.]+$/, "");
-      setMeta((current) => ({ ...current, [own]: { title: title!, target: NEW, author: "", status: "Đang ra", genres: [], free: common.free, include: true } }));
+      setMeta((current) => ({ ...current, [own]: { title: title!, target: NEW, author: "", status: "Đang ra", genres: [], free: common.free, include: true, cover: "" } }));
       key = own;
     }
     setGroupOf((current) => ({ ...current, [fileId]: key }));
@@ -270,9 +272,15 @@ export function ManuscriptDialog({ open, onOpenChange, mode, stories = [], story
       setProgress({ done, total, group: title });
       let id = group.targetId;
       if (!id) {
-        const created = await send("/api/admin/stories", { title, author: group.settings.author.trim() || common.author.trim(), status: group.settings.status, genres: group.settings.genres.length ? group.settings.genres : common.genres, description: "", chapters: [] });
+        const created = await send("/api/admin/stories", { title, author: group.settings.author.trim() || common.author.trim(), status: group.settings.status, genres: group.settings.genres.length ? group.settings.genres : common.genres, description: "", cover_url: group.settings.cover, chapters: [] });
         if (!created.ok) { all.push({ title, results: [], error: String(created.body.error ?? "Không tạo được truyện.") }); done += group.upload.length; continue; }
         id = String((created.body.story as { id: string }).id);
+      }
+      // Existing story whose cover was changed here: save the new cover (the old uploaded one is removed on the server).
+      const before = stories.find((item) => item.id === group.targetId)?.cover_url ?? "";
+      if (mode === "admin" && group.targetId && group.settings.cover !== before) {
+        const response = await fetch(`/api/admin/stories/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cover_url: group.settings.cover }) }).catch(() => null);
+        if (!response?.ok) toast.error(`Không lưu được ảnh bìa cho “${title}”.`);
       }
       const endpoint = mode === "admin" ? `/api/admin/stories/${id}/manuscript` : `/api/author/stories/${id}/manuscript`;
       const batches: Row[][] = [];
@@ -358,10 +366,14 @@ export function ManuscriptDialog({ open, onOpenChange, mode, stories = [], story
               <div className={`flex flex-wrap items-center gap-2 p-3 ${groups.length > 1 ? "cursor-pointer" : ""}`} onClick={(event) => { if (groups.length > 1 && !(event.target as HTMLElement).closest("input, button, [role=combobox], [role=checkbox]")) setExpanded(open ? null : group.key); }}>
                 {mode === "admin" && <Checkbox checked={group.settings.include} onCheckedChange={(checked) => updateMeta(group.key, { include: checked === true })} aria-label={`Tải truyện ${group.settings.title}`} />}
                 {groups.length > 1 && <Button type="button" variant="ghost" size="icon-sm" onClick={() => setExpanded(open ? null : group.key)} aria-label={open ? "Thu gọn" : "Xem chi tiết"}>{open ? <ChevronDown /> : <ChevronRight />}</Button>}
+                {mode === "admin" && <button type="button" onClick={() => setExpanded(group.key)} title={group.settings.cover ? "Ảnh bìa" : "Thêm ảnh bìa"} aria-label={group.settings.cover ? `Ảnh bìa ${group.settings.title}` : `Thêm ảnh bìa cho ${group.settings.title}`} className="flex aspect-[4/5] w-8 shrink-0 items-center justify-center overflow-hidden rounded border border-dashed bg-muted text-muted-foreground hover:border-highlight">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- uploaded cover preview */}
+                  {group.settings.cover ? <img src={group.settings.cover} alt="" className="size-full object-cover" /> : <ImagePlus className="size-3.5" />}
+                </button>}
                 {mode === "admin" && !group.targetId
                   ? <Input value={group.settings.title} onChange={(event) => updateMeta(group.key, { title: event.target.value })} className="h-8 min-w-48 flex-1 font-semibold" aria-label="Tên truyện" />
                   : <span className="min-w-0 flex-1 truncate font-semibold">{mode === "author" ? story!.title : stories.find((item) => item.id === group.targetId)?.title}</span>}
-                {mode === "admin" && <Select items={[{ value: NEW, label: "Truyện mới" }, ...stories.map((item) => ({ value: item.id, label: `Thêm vào: ${item.title}` }))]} value={group.settings.target} onValueChange={(value) => { const target = String(value); updateMeta(group.key, { target, ...(target !== NEW ? { free: stories.find((item) => item.id === target)?.lock_from_chapter === null } : {}) }); if (target !== NEW) void loadExisting(target); }}>
+                {mode === "admin" && <Select items={[{ value: NEW, label: "Truyện mới" }, ...stories.map((item) => ({ value: item.id, label: `Thêm vào: ${item.title}` }))]} value={group.settings.target} onValueChange={(value) => { const target = String(value); const chosen = stories.find((item) => item.id === target); updateMeta(group.key, { target, ...(chosen ? { free: chosen.lock_from_chapter === null, cover: chosen.cover_url ?? "" } : {}) }); if (target !== NEW) void loadExisting(target); }}>
                   <SelectTrigger size="sm" className="w-56" aria-label="Truyện đích"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value={NEW}>Truyện mới</SelectItem>{stories.map((item) => <SelectItem key={item.id} value={item.id}>Thêm vào: {item.title}</SelectItem>)}</SelectContent>
                 </Select>}
@@ -374,6 +386,7 @@ export function ManuscriptDialog({ open, onOpenChange, mode, stories = [], story
                   <Field><FieldLabel>Trạng thái</FieldLabel><Select items={statuses.map((value) => ({ value, label: value }))} value={group.settings.status} onValueChange={(value) => updateMeta(group.key, { status: String(value) })}><SelectTrigger className="w-full" aria-label="Trạng thái"><SelectValue /></SelectTrigger><SelectContent>{statuses.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></Field>
                   <Field><FieldLabel htmlFor={`g-${group.key}`}>Thể loại</FieldLabel><GenreCombobox id={`g-${group.key}`} catalog={catalog} value={group.settings.genres} onChange={(genres) => updateMeta(group.key, { genres })} /></Field>
                 </div>}
+                {mode === "admin" && <Field><FieldLabel htmlFor={`c-${group.key}`}>Ảnh bìa (tùy chọn)</FieldLabel><CoverUploader id={`c-${group.key}`} value={group.settings.cover} onChange={(cover) => updateMeta(group.key, { cover })} uploadUrl="/api/admin/covers" /><FieldDescription>{COVER_HINT}</FieldDescription></Field>}
                 <label className="flex items-center gap-2 text-sm"><Checkbox checked={group.settings.free} onCheckedChange={(checked) => updateMeta(group.key, { free: checked === true })} />Miễn phí cả truyện <span className="text-xs text-muted-foreground">(bỏ chọn để giữ cài đặt khóa chương hiện tại)</span></label>
                 {mode === "admin" && group.members.length > 0 && <div className="space-y-1">{group.members.map((file) => <div key={file.id} className="flex items-center gap-2 text-sm">
                   <FileText className="size-4 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 truncate" title={file.path || file.name}>{file.path || file.name}</span><span className="shrink-0 text-xs text-muted-foreground">{file.chapters.length} chương</span>

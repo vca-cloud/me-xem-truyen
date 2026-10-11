@@ -1,10 +1,10 @@
 import { AdminStoriesPage } from "@/components/admin-stories-page";
 import { r2Config } from "@/lib/r2";
-import { getViewStats, listStories, type StorySummary } from "@/lib/stories";
+import { getFeaturedStoryIds, getViewStats, listStories, type StorySummary } from "@/lib/stories";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function StoriesPage() {
-  let stories: (StorySummary & { moderation: { pending: number; mature: number; ads_off: number }; hot_pinned: boolean; hot: boolean; affiliate_enabled?: boolean; affiliate_gate_minutes?: number; affiliate_link_id?: string | null })[] = [];
+  let stories: (StorySummary & { moderation: { pending: number; mature: number; ads_off: number }; hot_pinned: boolean; hot: boolean; affiliate_enabled?: boolean; affiliate_gate_minutes?: number; affiliate_link_id?: string | null; featured?: boolean })[] = [];
   let genres: string[] = [];
   let affiliateLinks: { id: string; name: string; placement: string; active: boolean }[] = [];
   let loadError: string | null = null;
@@ -22,6 +22,9 @@ export default async function StoriesPage() {
     const affiliateById = new Map(((affiliateRows ?? []) as { id: string; affiliate_enabled: boolean; affiliate_gate_minutes: number; affiliate_link_id: string | null }[]).map((row) => [row.id, row]));
     stories = stories.map((story) => ({ ...story, affiliate_enabled: affiliateById.get(story.id)?.affiliate_enabled ?? false, affiliate_gate_minutes: affiliateById.get(story.id)?.affiliate_gate_minutes ?? 0, affiliate_link_id: affiliateById.get(story.id)?.affiliate_link_id ?? null }));
     affiliateLinks = (linkRows ?? []) as typeof affiliateLinks;
+    // "Truyện nên đọc" picks (migration 0013); none before the migration.
+    const featured = new Set(await getFeaturedStoryIds());
+    stories = stories.map((story) => ({ ...story, featured: featured.has(story.id) }));
   } catch (error) {
     loadError = error instanceof Error ? error.message : "Lỗi không xác định.";
   }

@@ -71,6 +71,7 @@ API tác giả (`guardAuthorApi()`, ghi bằng service role sau khi kiểm sessi
 
 - Server component `app/page.tsx` tải truyện, client component `components/home-page.tsx` hiển thị.
 - Header dùng chung (`components/site-header.tsx`): logo, menu Thể loại (từ admin), ô tìm kiếm → `/tim-kiem`, đăng nhập/đăng ký hoặc số Xu, nút sáng/tối. Điện thoại: dòng 1 logo + sáng/tối, dòng 2 menu + tìm kiếm + tài khoản.
+- Section **Truyện nên đọc** ở đầu (4 ô ảnh bìa): truyện admin chọn (`stories.featured`, mới chọn nhất trước — công tắc “Nên đọc” ở cột Tag `/admin/truyen` hoặc ô trong form), thiếu thì lấp bằng truyện nhiều lượt xem thật 7 ngày, rồi truyện mới cập nhật (`app/page.tsx`).
 - Section truyện mới đăng (ô ảnh bìa 4:5, nhãn NEW trong 7 ngày, FULL khi hoàn thành), mới cập nhật (bảng), truyện hoàn thành; ẩn section trống.
 - Tag trên ảnh bìa: HOT (cam `highlight`, icon lửa), NEW (#2D74A8, 7 ngày), FULL (#154B95, hoàn thành) — `StoryTag`; số lượt xem thật góc phải ảnh bìa; bảng có cột Lượt xem (từ `sm`) và đủ tag HOT/NEW/FULL nhỏ cạnh tên (trang chủ, tìm kiếm). Quy tắc tag dùng chung `storyTags()` trong `lib/views.ts`.
 - Danh sách truyện lọc theo thể loại trong admin, phân trang 10 truyện/trang; cột Tình trạng; badge thể loại một dòng, truncate text.
@@ -146,8 +147,9 @@ Chạy theo thứ tự trong Supabase SQL Editor:
 
 11. `0011_moderation_rescan.sql` — `moderation_state` (chỉ server đọc), trigger cập nhật thời điểm đổi từ điển, index `chapters.moderated_at`.
 12. `0012_affiliate_popup.sql` — `stories.affiliate_enabled/affiliate_gate_minutes/affiliate_link_id`, `affiliate_links.image_url/headline`, RPC `story_affiliate_popup`.
+13. `0013_featured.sql` — `stories.featured` + `featured_at` (trigger đóng dấu thời điểm chọn) cho “Truyện nên đọc”.
 
-Đã chạy `0001`–`0010` trên project hiện tại (`0011`, `0012` chờ chạy). Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
+Đã chạy `0001`–`0010` trên project hiện tại (`0011`–`0013` chờ chạy nếu chưa). Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
 
 ## 7. Import truyện hàng loạt
 

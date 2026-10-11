@@ -37,6 +37,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
 
     if (typeof body.ads_disabled === "boolean") update.ads_disabled = body.ads_disabled;
     if (typeof body.hot_pinned === "boolean") update.hot_pinned = body.hot_pinned;
+    if (typeof body.featured === "boolean") update.featured = body.featured;
     const affiliate = parseAffiliateSettings(body);
     if (affiliate.error) return NextResponse.json({ error: affiliate.error }, { status: 400 });
     Object.assign(update, affiliate.value);

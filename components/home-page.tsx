@@ -73,10 +73,11 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="mb-5 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">{children}</h2>;
 }
 
-export function HomePage({ stories, catalog, loadError }: { stories: HomeStory[]; catalog: HeaderGenre[]; loadError: string | null }) {
+export function HomePage({ stories, recommended = [], catalog, loadError }: { stories: HomeStory[]; recommended?: string[]; catalog: HeaderGenre[]; loadError: string | null }) {
   const [genre, setGenre] = useState("Tất cả");
   const [page, setPage] = useState(1);
   const genres = useMemo(() => ["Tất cả", ...catalog.map((item) => item.name)], [catalog]);
+  const picks = useMemo(() => recommended.map((slug) => stories.find((story) => story.slug === slug)).filter((story): story is HomeStory => !!story), [recommended, stories]);
   const newest = useMemo(() => [...stories].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 4), [stories]);
   const updated = stories.slice(0, 8);
   const completed = useMemo(() => stories.filter((story) => story.status === "Hoàn thành").slice(0, 4), [stories]);
@@ -95,6 +96,8 @@ export function HomePage({ stories, catalog, loadError }: { stories: HomeStory[]
         <AdSlot placement="home-top" />
         {loadError && <p role="alert" className="rounded-md border border-highlight/40 bg-highlight/10 px-4 py-3 text-sm text-foreground">Không tải được danh sách truyện. Vui lòng thử lại sau.</p>}
         {!loadError && stories.length === 0 && <p className="rounded-md border border-dashed px-4 py-12 text-center text-muted-foreground">Chưa có truyện nào được đăng.</p>}
+
+        {picks.length > 0 && <section><SectionTitle>Truyện nên đọc</SectionTitle><div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 lg:gap-x-5">{picks.map((story) => <StoryTile key={story.slug} story={story} tags={tagsOf(story)} />)}</div></section>}
 
         {newest.length > 0 && <section><SectionTitle>Truyện mới đăng</SectionTitle><div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 lg:gap-x-5">{newest.map((story) => <StoryTile key={story.slug} story={story} tags={tagsOf(story)} />)}</div></section>}
 

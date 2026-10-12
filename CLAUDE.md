@@ -37,9 +37,9 @@ public/               # Static assets
 
 ### Public
 
-- `/` — trang chủ: truyện mới đăng, mới cập nhật, hoàn thành, danh sách có lọc thể loại/tìm kiếm/phân trang (dữ liệu thật từ `stories`).
+- `/` — trang chủ: Gợi ý truyện, truyện mới đăng, mới cập nhật, hoàn thành, danh sách có lọc thể loại + số chương/phân trang (dữ liệu thật từ `stories`).
 - `/truyen/[slug]` — giới thiệu truyện và danh sách chương (`?thu_tu=moi` để xếp mới → cũ); slug không tồn tại trả 404.
-- `/truyen/[slug]/chuong/[chapterNumber]` — đọc chương; nội dung lấy từ `text_url` (file `.txt` public trên R2).
+- `/truyen/[slug]/chuong/[chapterNumber]` — đọc chương; nội dung lấy từ `text_url` (file `.txt` trên R2); chương miễn phí của truyện bật Shopee hiện pop-up affiliate (mục 8 → Shopee Affiliate).
 - `/dang-nhap`, `/dang-ky` — email/password hoặc Google (Turnstile nếu có `NEXT_PUBLIC_TURNSTILE_SITE_KEY`); `?next=` qua `safeInternalPath`.
 - `/tim-kiem` — tìm nâng cao: `q` (tên/tác giả/thể loại, không phân biệt dấu), `the_loai` (slug, phân tách dấu phẩy), `che_do=mot-trong` (mặc định có tất cả), `trang_thai`, `so_chuong` (`duoi-10`/`duoi-50`/`duoi-100`/`duoi-500`/`tu-500`, `lengthOptions`/`matchesLength`), `sap_xep` (`cap-nhat`/`moi-dang`/`nhieu-chuong`/`ten`), `trang`; noindex. Logic ở `lib/search.ts`. Header dùng chung `components/site-header.tsx` (menu thể loại lấy từ bảng `genres` qua `getGenreCatalog()`, ô tìm kiếm → `/tim-kiem`) cho trang chủ, trang truyện, trang tìm kiếm.
 - `/tac-gia` — khu vực tác giả (đăng ký làm tác giả, truyện của tôi, rút Xu), `/tac-gia/truyen/[id]` — viết/sửa chương; `/dieu-khoan-tac-gia` — điều khoản tác giả.
@@ -55,15 +55,15 @@ public/               # Static assets
 - `/admin/dang-nhap` — đăng nhập quản trị; `/admin/xac-thuc` — nhập mã 2 lớp (cả hai ngoài protected route group).
 - `/admin` — dashboard doanh thu & theo dõi.
 - `/admin/luot-xem` — lượt xem thật: tổng từ trước tới nay, người đọc, hôm nay/7/30 ngày, biểu đồ theo ngày (`?ngay=7|30|90`), bảng theo truyện (tổng, 30/7 ngày, người đọc, sparkline 14 ngày), công tắc Ghim HOT (RPC `admin_view_stats`).
-- `/admin/truyen` — đăng truyện, thêm chương, sửa thông tin (tên truyện cố định để giữ link), xóa, import CSV; dữ liệu thật.
+- `/admin/truyen` — đăng truyện, thêm chương, sửa thông tin (tên truyện cố định để giữ link), xóa, import CSV, Nhập từ Cloudflare, **Tải bản thảo** (mục 8b3); cột Tag (HOT/NEW/FULL + công tắc Ghim HOT, Gợi ý) và cột Kiếm tiền (công tắc AdSense, Shopee); dữ liệu thật.
 - `/admin/kiem-duyet` — hàng chờ duyệt chương (bị gắn cờ hoặc tác giả gửi), duyệt/đăng/từ chối, bật/tắt quảng cáo từng chương, sửa từ điển che từ (mục 8d).
 - `/admin/tac-gia` — duyệt hồ sơ tác giả, đặt % doanh thu, xử lý yêu cầu rút Xu (mục 8e).
-- `/admin/affiliate` — quản lý link Shopee, nhập báo cáo đơn hàng Shopee và AdSense.
+- `/admin/affiliate` — quản lý link Shopee (vị trí “Pop-up mở chương” có thêm ảnh sản phẩm + câu giới thiệu), nhập báo cáo đơn hàng Shopee và AdSense.
 - `/admin/thanh-vien` (thành viên, cộng/trừ Xu), `/admin/quan-tri-vien` (cấp/sửa/gỡ quyền, đổi mật khẩu), `/admin/the-loai` (thêm/đổi tên/xóa), `/admin/cai-dat` (bật/tắt xác thực 2 lớp, xem thông tin website). Tất cả dùng dữ liệu thật.
 
-API admin: `/api/admin/stories` (POST đăng truyện), `/api/admin/stories/[id]` (PATCH sửa, DELETE xóa), `/api/admin/stories/[id]/chapters` (POST thêm chương), `/api/admin/stories/import`, `/api/admin/affiliate-links[/id]`, `/api/admin/revenue/import`, `/api/admin/analytics/export`, `/api/admin/administrators/[id]/password`. Trang admin gọi `requireAdmin()` (redirect); API admin gọi `guardAdminApi(roleAccess.X)` trả 401/403. Quyền theo vai trò (`lib/auth.ts` → `roleAccess`): `view`/`content` cho admin, editor, moderator; `destructive` (xóa truyện/chương/thể loại), `money` (affiliate, doanh thu, Xu), `admins` chỉ cho `admin`. Thêm API mới: `/api/admin/stories/[id]/chapters` (GET), `/api/admin/chapters/[id]` (PATCH/DELETE — chương đã có người mua không xóa được), `/api/admin/administrators` (POST) + `[id]` (DELETE), `/api/admin/genres` (POST) + `[id]` (PATCH/DELETE), `/api/admin/covers` (POST ảnh bìa), `/api/admin/r2/folders|preview`, `/api/admin/stories/[id]/moderation` (quét lại), `/api/admin/moderation-terms[/id]`, `/api/admin/authors/[id]`, `/api/admin/payouts/[id]`.
+API admin: `/api/admin/stories` (POST đăng truyện), `/api/admin/stories/[id]` (PATCH sửa, DELETE xóa), `/api/admin/stories/[id]/chapters` (POST thêm chương), `/api/admin/stories/import`, `/api/admin/affiliate-links[/id]`, `/api/admin/revenue/import`, `/api/admin/analytics/export`, `/api/admin/administrators/[id]/password`. Trang admin gọi `requireAdmin()` (redirect); API admin gọi `guardAdminApi(roleAccess.X)` trả 401/403. Quyền theo vai trò (`lib/auth.ts` → `roleAccess`): `view`/`content` cho admin, editor, moderator; `destructive` (xóa truyện/chương/thể loại), `money` (affiliate, doanh thu, Xu), `admins` chỉ cho `admin`. Thêm API mới: `/api/admin/stories/[id]/chapters` (GET), `/api/admin/chapters/[id]` (PATCH/DELETE — chương đã có người mua không xóa được), `/api/admin/administrators` (POST) + `[id]` (DELETE), `/api/admin/genres` (POST) + `[id]` (PATCH/DELETE), `/api/admin/covers` (POST ảnh bìa), `/api/admin/r2/folders|preview`, `/api/admin/stories/[id]/moderation` (quét lại), `/api/admin/moderation-terms[/id]`, `/api/admin/authors/[id]`, `/api/admin/payouts/[id]`, `/api/admin/stories/[id]/manuscript` (POST lô chương từ bản thảo), `/api/admin/moderation/rescan` (GET trạng thái / POST quét 25 chương), `/api/manuscript/google-doc` (admin hoặc tác giả). Cron: `GET /api/cron/moderation-rescan` (cần `CRON_SECRET`).
 
-API tác giả (`guardAuthorApi()`, ghi bằng service role sau khi kiểm session + quyền sở hữu): `/api/author/apply`, `profile`, `stories[/id]`, `stories/[id]/chapters`, `chapters/[id]` (GET/PATCH/DELETE), `covers`, `payouts`.
+API tác giả (`guardAuthorApi()`, ghi bằng service role sau khi kiểm session + quyền sở hữu): `/api/author/apply`, `profile`, `stories[/id]`, `stories/[id]/chapters`, `chapters/[id]` (GET/PATCH/DELETE), `stories/[id]/manuscript`, `covers`, `payouts`.
 
 ## 4. Giao diện đã triển khai
 
@@ -87,6 +87,7 @@ API tác giả (`guardAuthorApi()`, ghi bằng service role sau khi kiểm sessi
 
 - Header gọn (logo 30px trên điện thoại, tài khoản, nút sáng/tối), điều hướng chương trước / chọn chương (Combobox) / chương sau ở trên và dưới.
 - Nội dung 24px (1.5× cỡ thường), dòng cách 1.8; tên chương 28px/36px. Từ nhạy cảm được che (`maskForReaders`). Dòng “Chương N: …” lặp ở đầu file bị bỏ (`stripChapterHeading`).
+- Pop-up Shopee (`components/shopee-gate.tsx`, `getStoryPopup()`) chỉ ở chương miễn phí đọc được của truyện bật Shopee và khi có link khả dụng; chương thu Xu dùng `UnlockBox`.
 
 ### Ảnh bìa
 
@@ -149,7 +150,7 @@ Chạy theo thứ tự trong Supabase SQL Editor:
 12. `0012_affiliate_popup.sql` — `stories.affiliate_enabled/affiliate_gate_minutes/affiliate_link_id`, `affiliate_links.image_url/headline`, RPC `story_affiliate_popup`.
 13. `0013_featured.sql` — `stories.featured` + `featured_at` (trigger đóng dấu thời điểm chọn) cho “Gợi ý truyện”.
 
-Đã chạy `0001`–`0010` trên project hiện tại (`0011`–`0013` chờ chạy nếu chưa). Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
+Đã chạy `0001`–`0013` trên project hiện tại (kiểm tra 12/10/2026). Bảng còn có thể bổ sung sau: tủ sách, đơn nạp Xu (`topup_orders`), gom lượt xem theo ngày.
 
 ## 7. Import truyện hàng loạt
 
@@ -262,12 +263,12 @@ Nút **Tải bản thảo** ở `/admin/truyen` (truyện mới hoặc thêm và
 
 ## 9. Thiết lập Supabase
 
-Project hiện dùng: `aijhhoopjtxjtoyvugsz` (gói Free, tự tạm dừng sau ~1 tuần không hoạt động — vào dashboard bấm Restore nếu app báo `fetch failed`). Đã chạy `0001`–`0008` và có admin `admin@admin.com` (06/10/2026; mật khẩu tạm, cần đổi trước production).
+Project hiện dùng: `aijhhoopjtxjtoyvugsz` (gói Free, tự tạm dừng sau ~1 tuần không hoạt động — vào dashboard bấm Restore nếu app báo `fetch failed`). Đã chạy `0001`–`0013` và có admin `admin@admin.com` (06/10/2026; mật khẩu tạm, cần đổi trước production).
 
 Thiết lập project mới:
 
 1. Lấy Project URL và Publishable key, điền vào `.env.local` (và Vercel).
-2. Chạy lần lượt `0001` → `0008` trong SQL Editor, rồi `notify pgrst, 'reload schema';`.
+2. Chạy lần lượt `0001` → `0013` trong SQL Editor, rồi `notify pgrst, 'reload schema';`.
 3. Tạo admin trực tiếp (không qua đăng ký) — thay email/mật khẩu:
 
 ```sql
@@ -377,24 +378,32 @@ Smoke test (`npm run dev`):
 - Mặc định không trang nào có `adsbygoogle.js`; `NEXT_PUBLIC_ADS_PREVIEW=true` hiện khung giữ chỗ ở trang chủ/truyện/chương, không có ở đăng nhập/admin.
 - `POST /api/admin/covers` và `/api/author/covers` chưa đăng nhập trả 401; file SVG/sai kích thước trả 400; bỏ ảnh bìa thì file trên R2 trả 404.
 - `/tim-kiem?the_loai=a,b` (có tất cả) và `&che_do=mot-trong` (ít nhất một) cho kết quả đúng.
+- `/tim-kiem?so_chuong=duoi-10` chỉ ra truyện dưới 10 chương; giá trị lạ bị bỏ qua.
+- Tải bản thảo (.docx/.pages/.md/.txt, nhiều file): xem trước tách đúng chương, không ghi đè file/chương đã có; thử trên truyện tạm rồi xóa (xóa truyện không xóa file chương trên R2 — dọn tay thư mục `<Tên truyện>/`).
+- Pop-up Shopee: chỉ hiện khi truyện bật Shopee và có link vị trí `popup` (hoặc link chọn riêng); “Mỗi lần mở chương” → tải lại / Back đều hiện lại.
+- Bật/tắt công tắc (HOT, Gợi ý, AdSense, Shopee) hoặc lưu form không đổi nội dung → `updated_at` giữ nguyên.
+- Sau lỗi biên dịch trong `next dev`, nếu trình duyệt kẹt “Rendering” thì khởi động lại `npm run dev` và tải lại cứng (Cmd+Shift+R).
 - Email login/register có loading và lỗi; Google OAuth chỉ redirect tới path nội bộ; R2 fail-closed khi thiếu credentials.
 
-## 13. Trạng thái hiện tại
+## 13. Trạng thái hiện tại (12/10/2026)
 
 Đã hoàn thành:
 
-- Giao diện public (sáng/tối, Raleway, bảng màu thương hiệu, header dùng chung, tìm kiếm nâng cao nhiều thể loại) và admin; dữ liệu thật từ Supabase.
+- Giao diện public (mặc định tối, Raleway, logo `<BrandName />`, bảng màu thương hiệu, header dùng chung, tìm kiếm nâng cao nhiều thể loại + số chương) và admin; dữ liệu thật từ Supabase; database đã chạy `0001`–`0013`.
 - Supabase Auth (Email/Google), guard admin theo vai trò, xác thực 2 lớp, Turnstile (chờ key), bypass đăng nhập cho dev.
-- Đăng/sửa/xóa truyện, thêm chương, import CSV, nhập từ thư mục Cloudflare R2, thể loại; tải và cắt ảnh bìa lên R2.
-- Xu và khóa chương; kiểm duyệt nội dung (che từ, quét khi đăng, quảng cáo theo chương, 18+ cho admin); tác giả thành viên (duyệt, viết chương, chia doanh thu, rút Xu ngày 20).
-- Tracking lượt xem/click affiliate, nhập báo cáo Shopee/AdSense, dashboard doanh thu, xuất CSV; component AdSense dựng sẵn (đang tắt), `ads.txt`; trang giới thiệu/điều khoản/bảo mật/liên hệ.
+- Đăng/sửa/xóa truyện, thêm chương, import CSV, nhập từ thư mục Cloudflare R2, **tải bản thảo** (.docx/.pages/.md/.txt/Google Docs, nhiều file, gom theo truyện, ảnh bìa ngay trong hộp), thể loại; tải và cắt ảnh bìa lên R2 (dọn ảnh mồ côi).
+- Xu và khóa chương; kiểm duyệt nội dung (che từ, quét khi đăng, quảng cáo theo chương, 18+ cho admin, quét lại toàn web sau khi đổi từ điển + cron đêm); tác giả thành viên (duyệt, viết chương, tải bản thảo, chia doanh thu, rút Xu ngày 20).
+- Lượt xem thật (ẩn ở trang public dưới 1.000), trang `/admin/luot-xem`, tag HOT (tự động/ghim), NEW, FULL; mục Gợi ý truyện.
+- Kiếm tiền theo truyện: công tắc AdSense và Shopee; pop-up Shopee ở chương miễn phí (tần suất mặc định “Mỗi lần mở chương”).
+- Tracking click affiliate, nhập báo cáo Shopee/AdSense, dashboard doanh thu, xuất CSV; component AdSense dựng sẵn (đang tắt), `ads.txt`; trang giới thiệu/điều khoản/bảo mật/liên hệ.
 
-Chưa hoàn thành:
+Chưa hoàn thành / cần chủ dự án làm:
 
+- Pop-up Shopee chưa hiện được: hiện chỉ có link “Khăn Giấy Top Gia” ở vị trí “Đầu chương” — cần link vị trí “Pop-up mở chương” (hoặc chọn link riêng cho truyện trong form).
 - Đổi mật khẩu admin tạm `admin@admin.com`.
-- Tên miền: gắn tên miền riêng cho R2 (thay `r2.dev`) và cho website; deploy Vercel kèm biến môi trường (Supabase, service role, R2, `VIEW_IP_SALT`, thông tin công ty).
+- Tên miền: gắn tên miền riêng cho R2 (thay `r2.dev`) và cho website; deploy Vercel kèm biến môi trường (Supabase, service role, R2, `VIEW_IP_SALT`, `CRON_SECRET`, thông tin công ty).
 - Đẩy repo lên GitHub (chỉ khi chủ dự án đồng ý) để chạy `.github/workflows/supabase-keepalive.yml` / `supabase-backup.yml` (cần secrets).
-- Nạp Xu tự động (VietQR/SePay + MoMo doanh nghiệp), bucket R2 riêng tư cho chương trả phí, tủ sách, gom lượt xem theo ngày, CSP.
+- Nạp Xu tự động (VietQR/SePay + MoMo doanh nghiệp), bucket R2 riêng tư cho chương trả phí (đường dẫn `<Tên truyện>/Chương N.txt` dễ đoán), tủ sách, gom lượt xem theo ngày, CSP.
 - Khi lưu lượng lớn (vài nghìn người đọc/ngày), nâng giới hạn `track_view` từ 300 lên 1.000 lượt/giờ/IP (nhiều người dùng 4G chung IP) — không bỏ hẳn chặn cày view (chủ dự án đã đồng ý 08/10/2026).
 - Đồng bộ tự động AdSense Management API và Shopee Affiliate API (hiện nhập CSV).
-- Gắn link Shopee và bật AdSense trên trang public (khi chủ dự án yêu cầu).
+- Bật AdSense trên trang public (khi chủ dự án yêu cầu; nên tắt ở truyện có pop-up Shopee).
